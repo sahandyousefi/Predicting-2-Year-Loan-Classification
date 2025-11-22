@@ -64,8 +64,6 @@ Dataset contains:
 
 # **EDA Summary**
 
-### ✔️ Summary from **I1**
-
 * The target variable is slightly imbalanced.
 * Delinquent borrowers tend to be **younger**.
 * `debt_ratio`, `rev_util`, and `monthly_inc` contain **extreme outliers**.
@@ -76,7 +74,6 @@ Dataset contains:
 
 # **Feature–Target Correlation**
 
-### Summary from **I2**
 
 Most correlated positively with delinquency:
 
@@ -97,8 +94,6 @@ Younger, lower-income individuals with late payments are more likely to default.
 
 # **Feature Scaling Strategy**
 
-### Summary from **I3**
-
 Logistic Regression is sensitive to feature magnitude.
 We scaled key continuous variables (age, income, debt, utilization, dependents) using **StandardScaler**.
 
@@ -115,8 +110,6 @@ Scaling improved:
 
 Before feature engineering:
 
-### Summary from **I4**
-
 * Accuracy ≈ **0.66**
 * Precision ≈ **0.68**
 * Recall ≈ **0.60**
@@ -128,8 +121,6 @@ The model was stable but not strong enough for practical use.
 ---
 
 # **Model Coefficients Interpretation**
-
-### Summary from **I5**
 
 * Strongest positive predictor: **late_90**
 * Strongest negative predictor: **age**
@@ -173,8 +164,6 @@ This transformed the dataset into **highly predictive engineered features**.
 
 # **Improved Logistic Regression Results (With Feature Engineering)**
 
-### Summary from **I9**
-
 After engineering 13 features:
 
 | Metric    | Score     |
@@ -185,7 +174,7 @@ After engineering 13 features:
 | F1 Score  | **0.760** |
 | ROC-AUC   | **0.835** |
 
-### 🚀 Improvement Highlights
+### Improvement Highlights
 
 * Accuracy improved **from 0.66 → 0.76**
 * Recall improved **from 0.60 → 0.76**

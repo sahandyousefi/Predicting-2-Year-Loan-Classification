@@ -1,23 +1,19 @@
-# Predicting-2-Year-Loan-Classification
-Financial institutions must assess whether a borrower is at risk of becoming delinquent within the next 2 years.
-
-
-# **Credit Risk Prediction Using Logistic Regression & Feature Engineering**
+# Credit Risk Prediction: 2-Year Delinquency Classification
 
 A complete end-to-end machine learning project that predicts **2-year credit delinquency risk** using the *Credit Risk Benchmark Dataset*.
-This project demonstrates expertise in:
+The project covers:
 
-✔️ Data cleaning & preprocessing
-✔️ Exploratory Data Analysis (EDA)
-✔️ Feature engineering
-✔️ Outlier/log transformations
-✔️ Multicollinearity handling
-✔️ Class imbalance handling
-✔️ Logistic Regression modeling
-✔️ Hyperparameter tuning
-✔️ Model interpretation (coefficients & feature impact)
-✔️ Performance improvement & evaluation
-✔️ Business insights
+* Data cleaning & preprocessing
+* Exploratory Data Analysis (EDA)
+* Feature engineering
+* Outlier/log transformations
+* Multicollinearity handling
+* Class imbalance handling
+* Logistic Regression modeling
+* Hyperparameter tuning
+* Model interpretation (coefficients & feature impact)
+* Performance improvement & evaluation
+* Business insights
 
 This project is built entirely using **Python**, **NumPy**, **Pandas**, **Matplotlib**, **Seaborn**, and **scikit-learn**, and is designed for both technical and non-technical audiences.
 
@@ -138,9 +134,9 @@ Performance did **not** improve significantly — showing that the model had rea
 
 ---
 
-# **Advanced Feature Engineering (Game Changer)**
+# **Feature Engineering**
 
-To dramatically improve performance, new meaningful financial features were created:
+The following financial features were derived from the raw attributes:
 
 1. **Debt per dependent**
 2. **Income per dependent**
@@ -152,7 +148,6 @@ To dramatically improve performance, new meaningful financial features were crea
    * log_rev_util
    * log_debt_ratio
 
-This transformed the dataset into **highly predictive engineered features**.
 
 ---
 
@@ -174,7 +169,39 @@ After engineering 13 features:
 * Recall improved **from 0.60 → 0.76**
 * ROC-AUC improved **from 0.73 → 0.83**
 
-This is a **massive improvement**, especially while keeping the model interpretable and business-friendly.
+The gain comes from feature engineering alone, so the model remains a fully interpretable linear classifier.
+
+---
+
+# **Project Structure**
+
+```
+.
+├── predicting-2-year-loan-classification.ipynb   EDA, experiments and interpretation
+├── src/
+│   ├── features.py                               feature engineering and input validation
+│   └── train.py                                  training pipeline, CV, threshold tuning
+├── tests/
+│   └── test_pipeline.py                          unit tests on synthetic data
+└── requirements.txt
+```
+
+The `src` package turns the final notebook model into a reproducible pipeline. Scaling is fit inside an sklearn `Pipeline`, so it only sees training data, and the decision threshold is tuned on the training split rather than the test set.
+
+---
+
+# **How to Run**
+
+```bash
+pip install -r requirements.txt
+
+# Download the Credit Risk Benchmark Dataset from Kaggle into data/
+python -m src.train --data "data/Credit Risk Benchmark Dataset.csv"
+
+pytest -q
+```
+
+Training writes cross-validated ROC-AUC, test metrics at the default and tuned thresholds, and model coefficients to `artifacts/metrics.json`.
 
 ---
 
@@ -187,6 +214,7 @@ This is a **massive improvement**, especially while keeping the model interpreta
 * Seaborn
 * Scikit-Learn
 * Jupyter Notebook / Kaggle
+* pytest
 
 ---
 
@@ -221,8 +249,5 @@ To extend this project, consider:
 * Probability calibration
 * Threshold optimization based on business cost
 
----
-
-# **If you like this project, consider giving the repo a star!**
 
 

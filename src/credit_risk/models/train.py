@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -18,25 +17,17 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
+from credit_risk.models.linear import make_logistic
 
 RANDOM_STATE = 42
 
 
-def build_pipeline(C: float = 100.0, penalty: str = "l1") -> Pipeline:
+def build_pipeline(C: float = 100.0, l1_ratio: float = 1.0) -> Pipeline:
     # Scaling lives inside the pipeline so it is fit on training folds only
     return Pipeline(
         steps=[
             ("scaler", StandardScaler()),
-            (
-                "clf",
-                LogisticRegression(
-                    C=C,
-                    penalty=penalty,
-                    solver="liblinear",
-                    class_weight="balanced",
-                    max_iter=2000,
-                ),
-            ),
+            ("clf", make_logistic(C=C, l1_ratio=l1_ratio)),
         ]
     )
 

@@ -75,3 +75,24 @@ def test_run_writes_metrics(tmp_path):
     saved = json.loads((tmp_path / "artifacts" / "metrics.json").read_text())
     assert saved["cv_roc_auc_mean"] == report["cv_roc_auc_mean"]
     assert len(saved["coefficients"]) == len(FEATURE_COLUMNS)
+
+
+def test_make_logistic_l1_produces_sparse_coefficients():
+    import warnings
+
+    from credit_risk.models.linear import make_logistic
+
+    rng = np.random.default_rng(1)
+    X = rng.normal(size=(300, 6))
+    y = (X[:, 0] > 0).astype(int)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        model = make_logistic(C=0.05, l1_ratio=1.0).fit(X, y)
+    assert (model.coef_[0, 1:] == 0).sum() >= 3
+
+
+def test_make_logistic_rejects_bad_ratio():
+    from credit_risk.models.linear import make_logistic
+
+    with pytest.raises(ValueError):
+        make_logistic(l1_ratio=1.5)

@@ -30,7 +30,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 1: Foundations
 
-- [ ] 1.6 Dataset loader with validation and data/README.md
 - [ ] 1.7 Ruff and pre-commit configuration
 - [ ] 1.8 GitHub Actions CI on Python 3.10 and 3.12
 - [ ] 1.9 Makefile for common tasks
@@ -93,4 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-02: 1.3 YAML configuration with typed dataclasses
 - [x] 2026-02-02: 1.4 Data schema and validation checks
 - [x] 2026-02-02: 1.5 Synthetic data generator matching the benchmark schema
-
+- [x] 2026-02-02: 1.6 Dataset loader with validation and data/README.md

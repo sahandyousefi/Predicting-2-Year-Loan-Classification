@@ -19,6 +19,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from credit_risk.config import Config, load_config
+from credit_risk.data.io import load_dataset
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 from credit_risk.models.linear import make_logistic
 
@@ -58,7 +59,7 @@ def run(
 ) -> dict:
     cfg = config or load_config()
     seed = cfg.data.random_state
-    df = pd.read_csv(data_path or cfg.data.path)
+    df = load_dataset(data_path or cfg.data.path)
     X, y = build_xy(df)
 
     X_train, X_test, y_train, y_test = train_test_split(

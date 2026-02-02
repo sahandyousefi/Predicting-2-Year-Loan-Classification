@@ -5,7 +5,11 @@ from credit_risk.data.schema import (
     assert_no_target_in_features,
     validate_frame,
 )
-from tests.test_pipeline import make_frame
+from credit_risk.data.synthetic import SyntheticSpec, make_synthetic
+
+
+def make_frame(n):
+    return make_synthetic(SyntheticSpec(n=n, seed=0))
 
 
 def test_clean_frame_passes():

@@ -4,29 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from credit_risk.data.synthetic import SyntheticSpec, make_synthetic
 from credit_risk.features.engineering import FEATURE_COLUMNS, add_engineered_features, build_xy
 from credit_risk.models.train import best_f1_threshold, build_pipeline, evaluate, run
 
 
 def make_frame(n: int = 400, seed: int = 0) -> pd.DataFrame:
-    rng = np.random.default_rng(seed)
-    df = pd.DataFrame(
-        {
-            "rev_util": rng.uniform(0, 1.2, n),
-            "age": rng.integers(21, 80, n).astype(float),
-            "late_30_59": rng.poisson(0.3, n).astype(float),
-            "debt_ratio": rng.exponential(0.4, n),
-            "monthly_inc": rng.lognormal(8.5, 0.6, n),
-            "open_credit": rng.integers(0, 25, n).astype(float),
-            "late_90": rng.poisson(0.2, n).astype(float),
-            "real_estate": rng.integers(0, 4, n).astype(float),
-            "late_60_89": rng.poisson(0.1, n).astype(float),
-            "dependents": rng.integers(0, 5, n).astype(float),
-        }
-    )
-    logit = -0.04 * (df["age"] - 50) + 0.8 * df["late_90"] + 0.5 * df["late_30_59"]
-    df["dlq_2yrs"] = (rng.uniform(size=n) < 1 / (1 + np.exp(-logit))).astype(int)
-    return df
+    return make_synthetic(SyntheticSpec(n=n, seed=seed))
 
 
 def test_engineered_columns_present():

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-risk"
+version = "0.1.0"
+description = "Two-year delinquency prediction with interpretable scorecards, gradient boosting and LLM-assisted credit decision support"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Sahand Yousefi" }]
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scikit-learn>=1.3",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "ruff>=0.5", "pre-commit>=3.5"]
+gbm = ["xgboost>=2.0", "lightgbm>=4.0"]
+tune = ["optuna>=3.4"]
+explain = ["shap>=0.44"]
+track = ["mlflow>=2.9"]
+serve = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27"]
+llm = ["openai>=1.30", "transformers>=4.40"]
+embed = ["sentence-transformers>=2.6"]
+viz = ["matplotlib>=3.7", "seaborn>=0.12", "jupyter>=1.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

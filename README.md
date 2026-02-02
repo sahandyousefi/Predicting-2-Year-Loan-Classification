@@ -178,25 +178,25 @@ The gain comes from feature engineering alone, so the model remains a fully inte
 ```
 .
 ├── predicting-2-year-loan-classification.ipynb   EDA, experiments and interpretation
-├── src/
-│   ├── features.py                               feature engineering and input validation
-│   └── train.py                                  training pipeline, CV, threshold tuning
+├── src/credit_risk/
+│   ├── features/engineering.py                   feature engineering and input validation
+│   └── models/train.py                           training pipeline, CV, threshold tuning
 ├── tests/
 │   └── test_pipeline.py                          unit tests on synthetic data
-└── requirements.txt
+└── pyproject.toml
 ```
 
-The `src` package turns the final notebook model into a reproducible pipeline. Scaling is fit inside an sklearn `Pipeline`, so it only sees training data, and the decision threshold is tuned on the training split rather than the test set.
+The `credit_risk` package turns the final notebook model into a reproducible pipeline. Scaling is fit inside an sklearn `Pipeline`, so it only sees training data, and the decision threshold is tuned on the training split rather than the test set.
 
 ---
 
 # **How to Run**
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 # Download the Credit Risk Benchmark Dataset from Kaggle into data/
-python -m src.train --data "data/Credit Risk Benchmark Dataset.csv"
+python -m credit_risk.models.train --data "data/Credit Risk Benchmark Dataset.csv"
 
 pytest -q
 ```

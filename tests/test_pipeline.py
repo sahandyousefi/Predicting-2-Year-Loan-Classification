@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.features import FEATURE_COLUMNS, add_engineered_features, build_xy
-from src.train import best_f1_threshold, build_pipeline, evaluate, run
+from credit_risk.features.engineering import FEATURE_COLUMNS, add_engineered_features, build_xy
+from credit_risk.models.train import best_f1_threshold, build_pipeline, evaluate, run
 
 
 def make_frame(n: int = 400, seed: int = 0) -> pd.DataFrame:

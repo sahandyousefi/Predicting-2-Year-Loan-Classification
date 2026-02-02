@@ -17,7 +17,7 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from src.features import FEATURE_COLUMNS, build_xy
+from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 
 RANDOM_STATE = 42
 

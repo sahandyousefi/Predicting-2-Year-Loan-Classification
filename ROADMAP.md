@@ -30,7 +30,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 1: Foundations
 
-- [ ] 1.1 Package layout under src/credit_risk with pyproject.toml and optional extras
 - [ ] 1.2 Replace the deprecated logistic regression penalty argument
 - [ ] 1.3 YAML configuration with typed dataclasses
 - [ ] 1.4 Data schema and validation checks
@@ -93,4 +92,5 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Completed
 
-_No items completed yet._
+- [x] 2026-02-02: 1.1 Package layout under src/credit_risk with pyproject.toml and optional extras
+

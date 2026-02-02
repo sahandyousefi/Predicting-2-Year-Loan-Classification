@@ -1,0 +1,19 @@
+data:
+  path: data/Credit Risk Benchmark Dataset.csv
+  target: dlq_2yrs
+  test_size: 0.2
+  random_state: 42
+
+model:
+  C: 100.0
+  l1_ratio: 1.0
+  cv_folds: 5
+
+cost:
+  # Loss given default and exposure at default, as fractions of the loan amount
+  lgd: 0.45
+  ead: 1.0
+  # Net margin earned on a performing loan, as a fraction of the loan amount
+  margin: 0.08
+
+output_dir: artifacts

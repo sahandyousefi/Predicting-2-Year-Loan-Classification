@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
@@ -16,11 +18,9 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from credit_risk.config import Config, load_config
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 from credit_risk.models.linear import make_logistic
-
-RANDOM_STATE = 42
-
 
 def build_pipeline(C: float = 100.0, l1_ratio: float = 1.0) -> Pipeline:
     # Scaling lives inside the pipeline so it is fit on training folds only
@@ -50,16 +50,27 @@ def evaluate(y_true, y_prob, threshold: float = 0.5) -> dict:
     }
 
 
-def run(data_path: str, output_dir: str = "artifacts", test_size: float = 0.2) -> dict:
-    df = pd.read_csv(data_path)
+def run(
+    data_path: str | None = None,
+    output_dir: str | None = None,
+    test_size: float | None = None,
+    config: Config | None = None,
+) -> dict:
+    cfg = config or load_config()
+    seed = cfg.data.random_state
+    df = pd.read_csv(data_path or cfg.data.path)
     X, y = build_xy(df)
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, stratify=y, random_state=RANDOM_STATE
+        X,
+        y,
+        test_size=test_size or cfg.data.test_size,
+        stratify=y,
+        random_state=seed,
     )
 
-    pipe = build_pipeline()
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    pipe = build_pipeline(C=cfg.model.C, l1_ratio=cfg.model.l1_ratio)
+    cv = StratifiedKFold(n_splits=cfg.model.cv_folds, shuffle=True, random_state=seed)
     cv_auc = cross_val_score(pipe, X_train, y_train, cv=cv, scoring="roc_auc")
 
     pipe.fit(X_train, y_train)
@@ -78,7 +89,7 @@ def run(data_path: str, output_dir: str = "artifacts", test_size: float = 0.2) -
         "coefficients": coefs.sort_values(ascending=False).round(4).to_dict(),
     }
 
-    out = Path(output_dir)
+    out = Path(output_dir or cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "metrics.json").write_text(json.dumps(report, indent=2))
     return report
@@ -86,13 +97,15 @@ def run(data_path: str, output_dir: str = "artifacts", test_size: float = 0.2) -
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train the 2-year delinquency classifier")
-    parser.add_argument("--data", required=True, help="Path to Credit Risk Benchmark CSV")
-    parser.add_argument("--output-dir", default="artifacts")
-    parser.add_argument("--test-size", type=float, default=0.2)
+    parser.add_argument("--config", default=None, help="Path to a YAML config")
+    parser.add_argument("--data", default=None, help="Overrides data.path")
+    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--test-size", type=float, default=None)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    result = run(args.data, args.output_dir, args.test_size)
+    cfg = load_config(args.config)
+    result = run(args.data, args.output_dir, args.test_size, config=cfg)
     print(json.dumps(result, indent=2))

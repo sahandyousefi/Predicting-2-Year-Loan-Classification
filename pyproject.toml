@@ -18,6 +18,9 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+credit-risk = "credit_risk.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "ruff>=0.5", "pre-commit>=3.5"]
 gbm = ["xgboost>=2.0", "lightgbm>=4.0"]

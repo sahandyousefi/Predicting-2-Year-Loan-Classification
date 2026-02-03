@@ -20,7 +20,7 @@ test:
 	pytest -q
 
 train:
-	python -m credit_risk.models.train --config $(CONFIG)
+	credit-risk train --config $(CONFIG)
 
 clean:
 	rm -rf artifacts .pytest_cache .ruff_cache build dist *.egg-info

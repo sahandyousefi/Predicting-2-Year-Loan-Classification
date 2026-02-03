@@ -30,7 +30,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 1: Foundations
 
-- [ ] 1.12 Command line interface
 
 ## Phase 2: Modeling
 
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-03: 1.9 Makefile for common tasks
 - [x] 2026-02-03: 1.10 MIT license
 - [x] 2026-02-03: 1.11 Move the exploration notebook to notebooks/
+- [x] 2026-02-03: 1.12 Command line interface

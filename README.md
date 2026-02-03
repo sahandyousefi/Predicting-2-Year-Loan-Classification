@@ -196,7 +196,8 @@ The `credit_risk` package turns the final notebook model into a reproducible pip
 pip install -e ".[dev]"
 
 # Download the Credit Risk Benchmark Dataset from Kaggle into data/
-python -m credit_risk.models.train --data "data/Credit Risk Benchmark Dataset.csv"
+credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
+credit-risk train --config configs/default.yaml
 
 pytest -q
 ```

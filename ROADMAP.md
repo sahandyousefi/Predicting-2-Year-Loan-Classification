@@ -30,7 +30,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 1: Foundations
 
-- [ ] 1.10 MIT license
 - [ ] 1.11 Move the exploration notebook to notebooks/
 - [ ] 1.12 Command line interface
 
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-03: 1.7 Ruff and pre-commit configuration
 - [x] 2026-02-03: 1.8 GitHub Actions CI on Python 3.10 and 3.12
 - [x] 2026-02-03: 1.9 Makefile for common tasks
+- [x] 2026-02-03: 1.10 MIT license

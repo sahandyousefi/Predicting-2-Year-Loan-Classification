@@ -42,7 +42,9 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
 
     out["debt_per_dependent"] = out["debt_ratio"] / household
     out["inc_per_dependent"] = out["monthly_inc"] / household
-    out["credit_to_income"] = out["open_credit"] / (out["monthly_inc"].clip(lower=0) + 1)
+    out["credit_to_income"] = out["open_credit"] / (
+        out["monthly_inc"].clip(lower=0) + 1
+    )
     out["late_severity"] = sum(out[col] * w for col, w in LATE_WEIGHTS.items())
 
     out["log_monthly_inc"] = np.log1p(out["monthly_inc"].clip(lower=0))

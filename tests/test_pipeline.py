@@ -5,7 +5,11 @@ import pandas as pd
 import pytest
 
 from credit_risk.data.synthetic import SyntheticSpec, make_synthetic
-from credit_risk.features.engineering import FEATURE_COLUMNS, add_engineered_features, build_xy
+from credit_risk.features.engineering import (
+    FEATURE_COLUMNS,
+    add_engineered_features,
+    build_xy,
+)
 from credit_risk.models.train import best_f1_threshold, build_pipeline, evaluate, run
 
 

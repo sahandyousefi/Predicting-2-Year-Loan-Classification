@@ -43,7 +43,9 @@ def make_synthetic(spec: SyntheticSpec | None = None) -> pd.DataFrame:
 
     age = np.clip(rng.normal(50, 14, n), 21, 95).round()
     monthly_inc = np.round(rng.lognormal(8.5, 0.55, n), 0)
-    dependents = rng.choice([0, 1, 2, 3, 4, 5], size=n, p=[0.5, 0.2, 0.15, 0.1, 0.04, 0.01])
+    dependents = rng.choice(
+        [0, 1, 2, 3, 4, 5], size=n, p=[0.5, 0.2, 0.15, 0.1, 0.04, 0.01]
+    )
     rev_util = np.clip(rng.beta(0.7, 1.4, n) * 1.1, 0, None)
     debt_ratio = rng.lognormal(-1.2, 0.8, n)
     open_credit = rng.poisson(8, n).astype(float)

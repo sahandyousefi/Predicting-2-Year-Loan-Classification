@@ -23,6 +23,7 @@ from credit_risk.data.io import load_dataset
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 from credit_risk.models.linear import make_logistic
 
+
 def build_pipeline(C: float = 100.0, l1_ratio: float = 1.0) -> Pipeline:
     # Scaling lives inside the pipeline so it is fit on training folds only
     return Pipeline(
@@ -97,7 +98,9 @@ def run(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train the 2-year delinquency classifier")
+    parser = argparse.ArgumentParser(
+        description="Train the 2-year delinquency classifier"
+    )
     parser.add_argument("--config", default=None, help="Path to a YAML config")
     parser.add_argument("--data", default=None, help="Overrides data.path")
     parser.add_argument("--output-dir", default=None)

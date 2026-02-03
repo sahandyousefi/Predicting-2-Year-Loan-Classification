@@ -177,7 +177,7 @@ The gain comes from feature engineering alone, so the model remains a fully inte
 
 ```
 .
-├── predicting-2-year-loan-classification.ipynb   EDA, experiments and interpretation
+├── notebooks/01_exploration_and_baseline.ipynb   EDA, experiments and interpretation
 ├── src/credit_risk/
 │   ├── features/engineering.py                   feature engineering and input validation
 │   └── models/train.py                           training pipeline, CV, threshold tuning

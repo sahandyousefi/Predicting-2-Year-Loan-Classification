@@ -33,7 +33,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 2: Modeling
 
-- [ ] 2.2 Logistic scorecard with points-to-double-odds scaling
 - [ ] 2.3 Credit metrics: KS, Gini, lift and gain tables
 - [ ] 2.4 Probability calibration with Brier score and reliability curves
 - [ ] 2.5 DeLong test for paired ROC-AUC comparison
@@ -93,3 +92,5 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-03: 1.11 Move the exploration notebook to notebooks/
 - [x] 2026-02-03: 1.12 Command line interface
 - [x] 2026-02-03: 2.1 Weight of Evidence binning and Information Value
+- [x] 2026-02-04: 2.2 Logistic scorecard with points-to-double-odds scaling
+

@@ -33,7 +33,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 2: Modeling
 
-- [ ] 2.4 Probability calibration with Brier score and reliability curves
 - [ ] 2.5 DeLong test for paired ROC-AUC comparison
 - [ ] 2.6 Expected loss threshold selection (PD x LGD x EAD)
 - [ ] 2.7 Model registry with XGBoost and LightGBM as optional extras
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-03: 2.1 Weight of Evidence binning and Information Value
 - [x] 2026-02-04: 2.2 Logistic scorecard with points-to-double-odds scaling
 - [x] 2026-02-04: 2.3 Credit metrics: KS, Gini, lift and gain tables
+- [x] 2026-02-04: 2.4 Probability calibration with Brier score and reliability curves

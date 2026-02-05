@@ -36,7 +36,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 3: Explainability and fairness
 
-- [ ] 3.3 Partial dependence and ICE curves
 - [ ] 3.4 Age-band fairness analysis
 - [ ] 3.5 Model card
 
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-05: 2.9 Model comparison report
 - [x] 2026-02-05: 3.1 SHAP global and local explanations
 - [x] 2026-02-05: 3.2 Adverse action reason codes from local attributions
+- [x] 2026-02-05: 3.3 Partial dependence and ICE curves

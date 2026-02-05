@@ -36,7 +36,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 3: Explainability and fairness
 
-- [ ] 3.1 SHAP global and local explanations
 - [ ] 3.2 Adverse action reason codes from local attributions
 - [ ] 3.3 Partial dependence and ICE curves
 - [ ] 3.4 Age-band fairness analysis
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-05: 2.7 Model registry with XGBoost and LightGBM as optional extras
 - [x] 2026-02-05: 2.8 Optuna tuning with nested cross-validation
 - [x] 2026-02-05: 2.9 Model comparison report
+- [x] 2026-02-05: 3.1 SHAP global and local explanations

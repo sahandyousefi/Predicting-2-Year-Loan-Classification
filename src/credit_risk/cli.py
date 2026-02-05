@@ -46,6 +46,33 @@ def _synthesize(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compare(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from sklearn.model_selection import train_test_split
+
+    from credit_risk.data.io import load_dataset
+    from credit_risk.evaluation.compare import compare_models, to_markdown
+    from credit_risk.features.engineering import build_xy
+
+    cfg = load_config(args.config)
+    X, y = build_xy(load_dataset(args.data or cfg.data.path))
+    X_tr, X_te, y_tr, y_te = train_test_split(
+        X,
+        y,
+        test_size=cfg.data.test_size,
+        stratify=y,
+        random_state=cfg.data.random_state,
+    )
+    table = compare_models(args.models, X_tr, y_tr, X_te, y_te, cfg.cost)
+    out = Path(args.output_dir or cfg.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    table.to_csv(out / "model_comparison.csv", index=False)
+    (out / "model_comparison.md").write_text(to_markdown(table) + "\n")
+    print(to_markdown(table))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -55,6 +82,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data", default=None, help="overrides data.path")
     p.add_argument("--output-dir", default=None)
     p.set_defaults(func=_train)
+
+    p = sub.add_parser("compare", help="compare models on one split")
+    p.add_argument("--config", default=None)
+    p.add_argument("--data", default=None)
+    p.add_argument("--output-dir", default=None)
+    p.add_argument(
+        "--models",
+        nargs="+",
+        default=["logistic", "scorecard", "hist_gbm", "xgboost", "lightgbm"],
+    )
+    p.set_defaults(func=_compare)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

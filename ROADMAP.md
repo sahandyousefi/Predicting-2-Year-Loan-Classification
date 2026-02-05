@@ -33,7 +33,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 2: Modeling
 
-- [ ] 2.8 Optuna tuning with nested cross-validation
 - [ ] 2.9 Model comparison report
 
 ## Phase 3: Explainability and fairness
@@ -93,4 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-04: 2.5 DeLong test for paired ROC-AUC comparison
 - [x] 2026-02-04: 2.6 Expected loss threshold selection (PD x LGD x EAD)
 - [x] 2026-02-05: 2.7 Model registry with XGBoost and LightGBM as optional extras
-
+- [x] 2026-02-05: 2.8 Optuna tuning with nested cross-validation

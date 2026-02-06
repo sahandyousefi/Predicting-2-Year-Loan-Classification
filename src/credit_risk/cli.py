@@ -73,6 +73,20 @@ def _compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _drift(args: argparse.Namespace) -> int:
+    from credit_risk.data.io import load_dataset
+    from credit_risk.data.schema import FEATURES
+    from credit_risk.monitoring.drift import drift_report
+
+    ref = load_dataset(args.reference, require_target=False)
+    cur = load_dataset(args.current, require_target=False)
+    report = drift_report(ref, cur, FEATURES)
+    print(report.to_string(index=False))
+    if args.output:
+        report.to_csv(args.output, index=False)
+    return 1 if (report["status"] == "significant").any() and args.fail_on_drift else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -93,6 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=["logistic", "scorecard", "hist_gbm", "xgboost", "lightgbm"],
     )
     p.set_defaults(func=_compare)
+
+    p = sub.add_parser("drift", help="PSI of each input between two samples")
+    p.add_argument("reference")
+    p.add_argument("current")
+    p.add_argument("--output", default=None)
+    p.add_argument("--fail-on-drift", action="store_true")
+    p.set_defaults(func=_drift)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

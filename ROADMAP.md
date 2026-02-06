@@ -39,7 +39,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 4: Monitoring and MLOps
 
-- [ ] 4.1 PSI and CSI drift monitoring
 - [ ] 4.2 Batch scoring command
 - [ ] 4.3 Experiment tracking with MLflow and run fingerprints
 - [ ] 4.4 Champion-challenger evaluation
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-05: 3.3 Partial dependence and ICE curves
 - [x] 2026-02-05: 3.4 Age-band fairness analysis
 - [x] 2026-02-05: 3.5 Model card
+- [x] 2026-02-06: 4.1 PSI and CSI drift monitoring

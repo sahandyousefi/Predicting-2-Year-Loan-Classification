@@ -87,6 +87,20 @@ def _drift(args: argparse.Namespace) -> int:
     return 1 if (report["status"] == "significant").any() and args.fail_on_drift else 0
 
 
+def _score(args: argparse.Namespace) -> int:
+    from credit_risk.data.io import load_dataset
+    from credit_risk.models.persistence import load_bundle
+    from credit_risk.serving.batch import score_frame
+
+    bundle = load_bundle(args.model)
+    raw = load_dataset(args.input, require_target=False)
+    scored = score_frame(bundle, raw)
+    scored.to_csv(args.output, index=False)
+    share = (scored["decision"] == "approve").mean()
+    print(f"scored {len(scored)} rows, approval rate {share:.3f}, wrote {args.output}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -114,6 +128,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--output", default=None)
     p.add_argument("--fail-on-drift", action="store_true")
     p.set_defaults(func=_drift)
+
+    p = sub.add_parser("score", help="batch-score a CSV with a saved model")
+    p.add_argument("input")
+    p.add_argument("output")
+    p.add_argument("--model", default="artifacts/model.joblib")
+    p.set_defaults(func=_score)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

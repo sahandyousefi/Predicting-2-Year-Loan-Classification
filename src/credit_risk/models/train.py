@@ -22,6 +22,7 @@ from credit_risk.config import Config, load_config
 from credit_risk.data.io import load_dataset
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 from credit_risk.models.linear import make_logistic
+from credit_risk.models.persistence import ModelBundle, save_bundle
 
 
 def build_pipeline(C: float = 100.0, l1_ratio: float = 1.0) -> Pipeline:
@@ -94,6 +95,14 @@ def run(
     out = Path(output_dir or cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "metrics.json").write_text(json.dumps(report, indent=2))
+    bundle = ModelBundle(
+        model=pipe,
+        features=list(FEATURE_COLUMNS),
+        threshold=tuned,
+        background=X_train.sample(min(500, len(X_train)), random_state=seed),
+        metadata={"cv_roc_auc_mean": report["cv_roc_auc_mean"]},
+    )
+    save_bundle(bundle, out / "model.joblib")
     return report
 
 

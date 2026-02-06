@@ -43,7 +43,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 5: Serving
 
-- [ ] 5.1 FastAPI scoring service
 - [ ] 5.2 Dockerfile
 
 ## Phase 6: LLM applications
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-06: 4.1 PSI and CSI drift monitoring
 - [x] 2026-02-06: 4.2 Batch scoring command
 - [x] 2026-02-06: 4.3 Experiment tracking with MLflow and run fingerprints
+- [x] 2026-02-06: 5.1 FastAPI scoring service

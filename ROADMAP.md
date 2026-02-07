@@ -46,7 +46,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 6: LLM applications
 
-- [ ] 6.6 LLM evaluation harness and prompt injection guardrails
 - [ ] 6.7 Text embeddings of loan-purpose descriptions with an ablation study
 
 ## Phase 7: Documentation
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-07: 6.3 Grounded adverse action notice generation
 - [x] 2026-02-07: 6.4 Credit policy corpus and retrieval with recall@k and MRR
 - [x] 2026-02-07: 6.5 Underwriter summary from score, reason codes and policy
+- [x] 2026-02-07: 6.6 LLM evaluation harness and prompt injection guardrails

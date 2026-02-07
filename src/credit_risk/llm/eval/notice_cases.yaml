@@ -1,0 +1,9 @@
+# Reason code combinations used to evaluate notice generation.
+- [DELINQ]
+- [DELINQ, UTIL]
+- [UTIL, DEBT, INCOME]
+- [DEBT, EXPOSURE]
+- [DELINQ, UTIL, DEBT, INCOME]
+- [HISTORY, UTIL]
+- [INCOME, HOUSEHOLD]
+- [EXPOSURE, DELINQ, HISTORY]

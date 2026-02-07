@@ -46,7 +46,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 6: LLM applications
 
-- [ ] 6.2 Versioned prompt templates
 - [ ] 6.3 Grounded adverse action notice generation
 - [ ] 6.4 Credit policy corpus and retrieval with recall@k and MRR
 - [ ] 6.5 Underwriter summary from score, reason codes and policy
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-06: 5.1 FastAPI scoring service
 - [x] 2026-02-06: 5.2 Dockerfile
 - [x] 2026-02-07: 6.1 Provider-agnostic LLM client with a deterministic mock provider
+- [x] 2026-02-07: 6.2 Versioned prompt templates

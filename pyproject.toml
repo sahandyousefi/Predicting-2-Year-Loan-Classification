@@ -35,6 +35,9 @@ viz = ["matplotlib>=3.7", "seaborn>=0.12", "jupyter>=1.0"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+credit_risk = ["llm/prompts/*.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

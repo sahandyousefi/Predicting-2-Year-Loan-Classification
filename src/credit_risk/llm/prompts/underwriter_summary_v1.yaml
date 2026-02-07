@@ -1,0 +1,21 @@
+name: underwriter_summary
+version: 1
+description: Case summary for a credit analyst combining model output and policy.
+system: |
+  You prepare short case summaries for credit analysts. Base every statement on
+  the model output and the policy excerpts provided. Cite policy excerpts by
+  their id in square brackets, for example [POL-3]. If the excerpts do not
+  cover a point, say so instead of guessing. Reply with a JSON object only.
+user: |
+  Model output
+  - Probability of default: $pd
+  - Decision at the current cut-off: $decision
+  - Principal reasons: $reasons
+
+  Policy excerpts
+  $policy
+
+  Return JSON with this structure:
+  {"summary": "<three to five sentences>",
+   "policy_citations": ["<excerpt id>", "..."],
+   "recommendation": "<approve | decline | refer>"}

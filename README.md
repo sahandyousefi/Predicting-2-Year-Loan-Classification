@@ -1,254 +1,201 @@
-# Credit Risk Prediction: 2-Year Delinquency Classification
+# Credit Risk Modeling: Two-Year Delinquency Prediction
 
-A complete end-to-end machine learning project that predicts **2-year credit delinquency risk** using the *Credit Risk Benchmark Dataset*.
-The project covers:
+[![CI](https://github.com/sahandyousefi/Predicting-2-Year-Loan-Classification/actions/workflows/ci.yml/badge.svg)](https://github.com/sahandyousefi/Predicting-2-Year-Loan-Classification/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-* Data cleaning & preprocessing
-* Exploratory Data Analysis (EDA)
-* Feature engineering
-* Outlier/log transformations
-* Multicollinearity handling
-* Class imbalance handling
-* Logistic Regression modeling
-* Hyperparameter tuning
-* Model interpretation (coefficients & feature impact)
-* Performance improvement & evaluation
-* Business insights
+This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with five model families, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
 
-This project is built entirely using **Python**, **NumPy**, **Pandas**, **Matplotlib**, **Seaborn**, and **scikit-learn**, and is designed for both technical and non-technical audiences.
+## Contents
 
----
+- [What the project does](#what-the-project-does)
+- [Results](#results)
+- [Architecture](#architecture)
+- [Getting started](#getting-started)
+- [Methodology](#methodology)
+- [LLM decision support](#llm-decision-support)
+- [Serving](#serving)
+- [Testing and CI](#testing-and-ci)
+- [Limitations](#limitations)
+- [References](#references)
 
-# **Problem Statement**
+## What the project does
 
-Financial institutions must assess whether a borrower is at risk of becoming **delinquent within the next 2 years**.
-The goal of this project is to build a **predictive model** that estimates this probability using borrower attributes such as:
+| Area | Implementation |
+| --- | --- |
+| Data | Schema validation with hard errors and soft warnings, synthetic data generator with the same schema for tests |
+| Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value |
+| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM |
+| Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
+| Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow |
+| Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin |
+| Explainability | Exact linear SHAP and TreeSHAP, reason codes grouped to borrower attributes, PDP and ICE |
+| Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
+| Monitoring | PSI and characteristic stability, run fingerprints, MLflow tracking with a JSON fallback |
+| Serving | Batch scoring CLI, FastAPI service with request validation, Dockerfile |
+| LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, evaluation harness, prompt injection screening |
 
-* Age
-* Income
-* Debt ratio
-* Credit utilization
-* Credit history
-* Late payment patterns
-* Number of dependents
+## Results
 
-This model helps institutions **manage credit risk**, improve approval decisions, and reduce financial exposure.
+### Exploration notebook (benchmark data)
 
----
+`notebooks/01_exploration_and_baseline.ipynb` documents the original analysis. Logistic regression on the raw attributes reached ROC-AUC 0.73. Adding engineered features raised it to 0.835 on the held-out test set:
 
-# **Dataset Overview**
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+| --- | --- | --- | --- | --- | --- |
+| Logistic regression, raw features | 0.66 | 0.68 | 0.60 | 0.64 | 0.73 |
+| Logistic regression, engineered features | 0.760 | 0.759 | 0.760 | 0.760 | 0.835 |
 
-The dataset contains numerical and financial attributes describing borrower behavior.
-The target variable is:
+The notebook fitted the scaler on the full dataset before splitting. The package moves scaling inside the pipeline, so these figures are a reference point rather than the final estimate.
 
-* `dlq_2yrs` → 1 = borrower became delinquent within 2 years, 0 = did not
+### Package pipeline
 
-Dataset contains:
+Results to be filled from a full run on the benchmark data with `credit-risk train` and `credit-risk compare`. The comparison table reports discrimination, calibration, DeLong p-values against the best model and realized profit at the chosen cut-off.
 
-* No missing values
-* Mostly continuous features
-* Skewed financial variables
-* Highly correlated late-payment features
+## Architecture
 
----
+```mermaid
+flowchart LR
+    A[Raw CSV] --> B[Schema validation]
+    B --> C[Feature engineering]
+    C --> D[Models: logistic, scorecard, GBMs]
+    D --> E[Calibration and cost-based cut-off]
+    E --> F[Decision]
+    D --> G[SHAP attributions]
+    G --> H[Reason codes]
+    H --> I[LLM adverse action notice]
+    F --> I
+    H --> J[Policy retrieval]
+    J --> K[LLM analyst summary]
+    I --> L{Grounding checks}
+    K --> L
+    L -->|pass| M[Output]
+    L -->|fail| N[Template or manual review]
+    C --> O[PSI drift monitoring]
+```
 
-# **EDA Summary**
-
-* The target variable is slightly imbalanced.
-* Delinquent borrowers tend to be **younger**.
-* `debt_ratio`, `rev_util`, and `monthly_inc` contain **extreme outliers**.
-* Late-payment features (`late_30_59`, `late_60_89`, `late_90`) are **~99% correlated**, causing severe multicollinearity.
-* Some weak correlations found, indicating the need for feature engineering.
-
----
-
-# **Feature–Target Correlation**
-
-
-Most correlated positively with delinquency:
-
-* `late_30_59`
-* `late_60_89`
-* `late_90`
-* `dependents`
-
-Most negatively correlated:
-
-* `age`
-* `monthly_inc`
-* `open_credit`
-
-Younger, lower-income individuals with late payments are more likely to default.
-
----
-
-# **Feature Scaling Strategy**
-
-Logistic Regression is sensitive to feature magnitude.
-We scaled key continuous variables (age, income, debt, utilization, dependents) using **StandardScaler**.
-
-Scaling improved:
-
-* gradient descent convergence
-* model stability
-* coefficient interpretability
-* overall predictive performance
-
----
-
-# **Baseline Logistic Regression Performance**
-
-Before feature engineering:
-
-* Accuracy ≈ **0.66**
-* Precision ≈ **0.68**
-* Recall ≈ **0.60**
-* F1 ≈ **0.64**
-* ROC-AUC ≈ **0.73**
-
-The model was stable but not strong enough for practical use.
-
----
-
-# **Model Coefficients Interpretation**
-
-* Strongest positive predictor: **late_90**
-* Strongest negative predictor: **age**
-* Income reduces default risk
-* Dependents slightly increase risk
-* Credit exposure has moderate effect
-
-These align with real-world financial logic.
-
----
-
-# **Hyperparameter Tuning**
-
-GridSearchCV was used to tune:
-
-* `penalty` (L1/L2)
-* `C`
-* `class_weight`
-
-Performance did **not** improve significantly — showing that the model had reached its linear performance limit.
-
----
-
-# **Feature Engineering**
-
-The following financial features were derived from the raw attributes:
-
-1. **Debt per dependent**
-2. **Income per dependent**
-3. **Credit-to-income ratio**
-4. **Late payment severity score** (weighted combination of all late-payment variables)
-5. **Log transformations** to reduce skewness:
-
-   * log_monthly_inc
-   * log_rev_util
-   * log_debt_ratio
-
-
----
-
-# **Improved Logistic Regression Results (With Feature Engineering)**
-
-After engineering 13 features:
-
-| Metric    | Score     |
-| --------- | --------- |
-| Accuracy  | **0.760** |
-| Precision | **0.759** |
-| Recall    | **0.760** |
-| F1 Score  | **0.760** |
-| ROC-AUC   | **0.835** |
-
-### Improvement Highlights
-
-* Accuracy improved **from 0.66 → 0.76**
-* Recall improved **from 0.60 → 0.76**
-* ROC-AUC improved **from 0.73 → 0.83**
-
-The gain comes from feature engineering alone, so the model remains a fully interpretable linear classifier.
-
----
-
-# **Project Structure**
+### Project structure
 
 ```
 .
-├── notebooks/01_exploration_and_baseline.ipynb   EDA, experiments and interpretation
+├── configs/default.yaml            split, model and cost parameters
+├── data/README.md                  dataset source, dictionary and validation rules
+├── docs/model_card.md              intended use, factors, metrics, caveats
+├── notebooks/                      exploration notebook
 ├── src/credit_risk/
-│   ├── features/engineering.py                   feature engineering and input validation
-│   └── models/train.py                           training pipeline, CV, threshold tuning
-├── tests/
-│   └── test_pipeline.py                          unit tests on synthetic data
+│   ├── cli.py                      credit-risk command
+│   ├── config.py                   typed YAML configuration
+│   ├── data/                       schema, loader, synthetic generator
+│   ├── features/                   engineered features, WoE binning
+│   ├── models/                     pipelines, scorecard, registry, tuning, persistence
+│   ├── evaluation/                 credit metrics, calibration, DeLong, thresholds, comparison
+│   ├── explain/                    SHAP, reason codes, PDP/ICE, fairness
+│   ├── monitoring/                 drift, experiment tracking
+│   ├── serving/                    batch scoring, FastAPI service
+│   └── llm/                        client, prompts, notices, retrieval, guardrails, evaluation
+├── tests/                          unit and integration tests on synthetic data
+├── Dockerfile
+├── Makefile
 └── pyproject.toml
 ```
 
-The `credit_risk` package turns the final notebook model into a reproducible pipeline. Scaling is fit inside an sklearn `Pipeline`, so it only sees training data, and the decision threshold is tuned on the training split rather than the test set.
-
----
-
-# **How to Run**
+## Getting started
 
 ```bash
-pip install -e ".[dev]"
-
-# Download the Credit Risk Benchmark Dataset from Kaggle into data/
-credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
-credit-risk train --config configs/default.yaml
-
-pytest -q
+git clone https://github.com/sahandyousefi/Predicting-2-Year-Loan-Classification.git
+cd Predicting-2-Year-Loan-Classification
+pip install -e ".[dev]"            # core package and test tools
+pip install -e ".[gbm,tune,explain,serve]"   # optional model, tuning, SHAP and API extras
 ```
 
-Training writes cross-validated ROC-AUC, test metrics at the default and tuned thresholds, and model coefficients to `artifacts/metrics.json`.
+Download the dataset as described in `data/README.md`, then:
 
----
+```bash
+credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
+credit-risk train --config configs/default.yaml
+credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
+credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
+credit-risk drift reference.csv current.csv --fail-on-drift
+```
 
-# **Tech Stack**
+`credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
 
-* Python
-* Pandas
-* NumPy
-* Matplotlib
-* Seaborn
-* Scikit-Learn
-* Jupyter Notebook / Kaggle
-* pytest
+## Methodology
 
----
+**Target and data.** `dlq_2yrs = 1` if the borrower was 90 or more days past due within two years. The benchmark has 16,714 borrowers and ten numeric attributes. Its default rate is far higher than in a production portfolio, which matters for calibration and cut-offs.
 
-# **Conclusion**
+**Features.** Debt and income per household member, credit-to-income, a delinquency severity score $s = 1\cdot n_{30\text{-}59} + 2\cdot n_{60\text{-}89} + 3\cdot n_{90+}$ that replaces three counts with pairwise correlations near 0.99, and $\log(1+x)$ transforms of skewed amounts.
 
-This project demonstrates how:
+**Scorecard.** Each attribute is binned on quantiles, adjacent bins are merged until the default rate is monotonic, and bins are encoded by Weight of Evidence $\mathrm{WoE}_i = \ln(g_i/G) - \ln(b_i/B)$. Information Value $\sum_i (g_i/G - b_i/B)\,\mathrm{WoE}_i$ ranks attributes. A logistic model on WoE values is scaled to points with $\text{score} = \text{offset} + \text{factor}\cdot\ln(\text{odds}_{good})$, $\text{factor} = \text{pdo}/\ln 2$ (Siddiqi, 2006).
 
-* Proper **EDA**
-* Careful **handling of multicollinearity**
-* Smart **feature engineering**
-* Scaling & transformations
-* Logistic Regression tuning
+**Model comparison.** All models are fitted on the same stratified split. ROC-AUC differences are tested with the DeLong et al. (1988) method for correlated ROC curves, using the fast midrank algorithm of Sun and Xu (2014). Hyperparameters are tuned with Optuna (Akiba et al., 2019) inside nested cross-validation, so the reported score is not inflated by model selection.
 
-can elevate a basic model into a **high-performing, interpretable, and business-ready predictive system**.
+**Calibration.** Probabilities are checked with the Brier score, expected calibration error and the Hosmer-Lemeshow test, and corrected with Platt scaling or isotonic regression on held-out data (Niculescu-Mizil and Caruana, 2005).
 
-The final model delivers:
+**Cut-off.** Approving a loan earns margin $m$ with probability $1-\mathrm{PD}$ and loses $\mathrm{LGD}$ with probability $\mathrm{PD}$, so with calibrated PDs the break-even cut-off is $\mathrm{PD}^* = m/(m+\mathrm{LGD})$. The package also searches the empirical profit curve, since PDs are never perfectly calibrated. LGD, EAD and margin are set in `configs/default.yaml` and are assumptions, not estimates.
 
-* Strong predictive power
-* Real-world financial interpretability
-* Solid performance metrics
-* Clean and well-documented ML workflow
+**Explainability.** Linear models are explained in closed form, $\phi_j = \beta_j (x_j - \mathbb{E}[x_j])$, and tree ensembles with TreeSHAP (Lundberg and Lee, 2017). In both cases the attributions add up to the model's log-odds. Attributions of engineered features are summed back to the borrower attribute they come from, and the largest positive groups become up to four reason codes, as Regulation B requires for adverse action notices.
 
----
+**Fairness.** Age is a model input and a protected basis. The fairness report gives approval rates, disparate impact against the most-approved band (four-fifths rule) and the difference in approval rates among borrowers who did not default (equal opportunity), with 62 and over as a separate band.
 
-# **Next Steps (Future Work)**
+**Monitoring.** The Population Stability Index $\sum_i (a_i - e_i)\ln(a_i/e_i)$ is computed per input and on the score; values above 0.25 are flagged. Every training run records hashes of the configuration and data, library versions and the git commit.
 
-To extend this project, consider:
+## LLM decision support
 
-* Random Forest vs. XGBoost comparison
-* SHAP & model explainability
-* Deployment using Flask/FastAPI
-* Probability calibration
-* Threshold optimization based on business cost
+The LLM layer never makes or changes a credit decision. It writes text around a decision the model has already made, and every output is checked before use.
 
+- **Client.** One interface for any OpenAI-compatible endpoint, including local servers, plus a deterministic mock used in all tests. Retries with exponential backoff, and token, latency and cost logging. Configured with `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` and `LLM_API_KEY`.
+- **Prompts.** Stored as versioned YAML files. Each generation records the template fingerprint.
+- **Adverse action notices.** The prompt lists only the model's reason codes. The reply must be valid JSON, cite exactly those codes in the same order, and avoid every prohibited basis under ECOA. If it fails after a retry, a deterministic template notice is used instead.
+- **Analyst summaries.** Retrieval-augmented generation (Lewis et al., 2020) over a small credit policy written for this project. Policy sections are retrieved with a character n-gram TF-IDF retriever, or a Sentence-BERT retriever (Reimers and Gurevych, 2019) when the `embed` extra is installed. Any citation of a section that was not shown to the model is flagged.
+- **Evaluation.** A fixed set of reason code combinations measures format compliance, grounding, hallucination and fallback rates for any provider. Retrieval is measured with recall@k and MRR on labeled queries; the TF-IDF retriever reaches recall@3 of 0.9 and MRR of 0.87 on the current set.
+- **Guardrails.** Applicant free text is normalized, stripped of control characters and screened for instruction overrides, role changes, prompt extraction and delimiter attacks. Flagged text goes to manual review. The attack and benign examples in `llm/eval/injection_cases.yaml` serve as a regression set; they are not a measure of robustness against adaptive attacks.
 
+## Serving
 
+```bash
+credit-risk train                        # writes artifacts/model.joblib
+make serve                               # uvicorn on port 8000
+curl -X POST localhost:8000/score -H "Content-Type: application/json" -d '{
+  "rev_util": 0.95, "age": 29, "late_30_59": 3, "debt_ratio": 0.8, "monthly_inc": 2500,
+  "open_credit": 12, "late_90": 2, "real_estate": 0, "late_60_89": 1, "dependents": 2}'
+```
+
+The response contains the PD, the decision at the stored cut-off and, for declines, the reason codes. `/score/batch`, `/health` and `/version` are also available. `make docker-build docker-run` runs the same service in a container with the model mounted from `artifacts/`.
+
+## Testing and CI
+
+```bash
+make lint
+make test
+```
+
+Tests run on synthetic data only and cover validation, features, every model family, metrics against reference implementations (for example KS against `scipy.stats.ks_2samp` and the DeLong AUC against scikit-learn), additivity of attributions, the API, and the LLM checks with mock providers. GitHub Actions runs lint and tests on Python 3.10 and 3.12. Tests that need optional extras are skipped when the extra is not installed.
+
+## Limitations
+
+- The benchmark has no application dates, so out-of-time validation is not possible.
+- The default rate of the benchmark is far higher than in real portfolios; PDs must be recalibrated to the target default rate before pricing.
+- LGD, EAD and margin in the configuration are illustrative.
+- No protected attribute other than age is available, so proxy discrimination cannot be measured directly.
+- The credit policy used for retrieval is illustrative and was written for this project.
+
+See [ROADMAP.md](ROADMAP.md) for planned work and [docs/model_card.md](docs/model_card.md) for the model card.
+
+## References
+
+- Akiba, T., Sano, S., Yanase, T., Ohta, T., and Koyama, M. (2019). Optuna: A next-generation hyperparameter optimization framework. *KDD*.
+- Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *KDD*.
+- DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
+- Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *NeurIPS*.
+- Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
+- Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.
+- Mitchell, M., et al. (2019). Model cards for model reporting. *FAT\**.
+- Niculescu-Mizil, A., and Caruana, R. (2005). Predicting good probabilities with supervised learning. *ICML*.
+- Reimers, N., and Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. *EMNLP-IJCNLP*.
+- Siddiqi, N. (2006). *Credit Risk Scorecards: Developing and Implementing Intelligent Credit Scoring*. Wiley.
+- Sun, X., and Xu, W. (2014). Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves. *IEEE Signal Processing Letters*, 21(11), 1389-1393.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

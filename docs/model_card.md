@@ -48,7 +48,7 @@ The notebook fitted the scaler before the train/test split; the package pipeline
 ## Ethical considerations
 
 - Reason codes describe the model, not the applicant's creditworthiness in general. They are grouped to borrower attributes so that notices never cite transformed variables.
-- The benchmark is approximately balanced between defaulters and non-defaulters, unlike a production portfolio. PDs must be recalibrated to the target population's default rate before they are used for pricing or cut-offs.
+- The benchmark has a far higher default rate than a production portfolio. PDs must be recalibrated to the target population's default rate before they are used for pricing or cut-offs.
 
 ## Caveats and recommendations
 

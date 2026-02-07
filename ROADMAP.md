@@ -52,7 +52,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 - [ ] 7.1 docs/methodology.md
 - [ ] 7.2 docs/llm_design.md with an architecture diagram
-- [ ] 7.3 README rewrite for the package
 
 ## Completed
 
@@ -93,3 +92,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-07: 6.4 Credit policy corpus and retrieval with recall@k and MRR
 - [x] 2026-02-07: 6.5 Underwriter summary from score, reason codes and policy
 - [x] 2026-02-07: 6.6 LLM evaluation harness and prompt injection guardrails
+- [x] 2026-02-07: 7.3 README rewrite for the package

@@ -1,0 +1,21 @@
+# Each query lists the policy sections that answer it.
+- query: When must an application with a 90 day late payment be reviewed by an analyst?
+  relevant: [POL-3]
+- query: What is the maximum debt to income ratio for a new loan?
+  relevant: [POL-5]
+- query: How many reasons should a decline letter include and when is it sent?
+  relevant: [POL-8]
+- query: Credit card balances are over the limit, what should happen?
+  relevant: [POL-4]
+- query: Can the model use the applicant's age?
+  relevant: [POL-10]
+- query: Score is close to the cut-off, approve or refer?
+  relevant: [POL-7, POL-4]
+- query: What documents are needed for self-employed income?
+  relevant: [POL-6]
+- query: How often are analyst overrides reported and what limit applies?
+  relevant: [POL-9]
+- query: What PSI value triggers an investigation of drift?
+  relevant: [POL-11]
+- query: Who is eligible to apply?
+  relevant: [POL-2]

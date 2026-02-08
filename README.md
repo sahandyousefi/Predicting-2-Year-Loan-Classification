@@ -31,7 +31,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin |
 | Explainability | Exact linear SHAP and TreeSHAP, reason codes grouped to borrower attributes, PDP and ICE |
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
-| Monitoring | PSI and characteristic stability, run fingerprints, MLflow tracking with a JSON fallback |
+| Monitoring | PSI and characteristic stability, champion-challenger tests with swap-set analysis, run fingerprints, MLflow tracking with a JSON fallback |
 | Serving | Batch scoring CLI, FastAPI service with request validation, Dockerfile |
 | LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, evaluation harness, prompt injection screening |
 
@@ -116,6 +116,7 @@ credit-risk train --config configs/default.yaml
 credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
 credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
+credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -139,6 +140,8 @@ credit-risk drift reference.csv current.csv --fail-on-drift
 **Fairness.** Age is a model input and a protected basis. The fairness report gives approval rates, disparate impact against the most-approved band (four-fifths rule) and the difference in approval rates among borrowers who did not default (equal opportunity), with 62 and over as a separate band.
 
 **Monitoring.** The Population Stability Index $\sum_i (a_i - e_i)\ln(a_i/e_i)$ is computed per input and on the score; values above 0.25 are flagged. Every training run records hashes of the configuration and data, library versions and the git commit.
+
+**Champion-challenger.** A candidate model replaces the production model only after a paired comparison on the same labeled out-of-sample applicants, each model at its own cut-off. Promotion requires three conditions: the DeLong lower confidence bound of $\mathrm{AUC}_{1}-\mathrm{AUC}_{0}$ above $-\delta_{\mathrm{AUC}}$ (non-inferiority), the paired bootstrap upper bound of the Brier score difference below $\delta_{B}$, and the bootstrap lower bound of the profit difference per applicant above zero. The swap-set table reports the bad rate of applicants the challenger would newly approve (swap-in) and newly decline (swap-out), which is how a policy change is usually explained to credit committees.
 
 ## LLM decision support
 

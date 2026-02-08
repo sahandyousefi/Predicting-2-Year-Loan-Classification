@@ -101,6 +101,35 @@ def _score(args: argparse.Namespace) -> int:
     return 0
 
 
+def _challenge(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from credit_risk.data.io import load_dataset
+    from credit_risk.data.schema import TARGET
+    from credit_risk.models.persistence import load_bundle
+    from credit_risk.monitoring.champion_challenger import (
+        PromotionRule,
+        challenge_bundles,
+        report_markdown,
+    )
+
+    cfg = load_config(args.config)
+    df = load_dataset(args.data)
+    result = challenge_bundles(
+        load_bundle(args.champion),
+        load_bundle(args.challenger),
+        df.drop(columns=[TARGET]),
+        df[TARGET],
+        cfg.cost,
+        PromotionRule(auc_margin=args.auc_margin, n_boot=args.n_boot),
+    )
+    text = report_markdown(result)
+    if args.output:
+        Path(args.output).write_text(text)
+    print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -134,6 +163,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("output")
     p.add_argument("--model", default="artifacts/model.joblib")
     p.set_defaults(func=_score)
+
+    p = sub.add_parser("challenge", help="champion-challenger comparison")
+    p.add_argument("data", help="labeled out-of-sample CSV")
+    p.add_argument("--champion", required=True)
+    p.add_argument("--challenger", required=True)
+    p.add_argument("--config", default=None)
+    p.add_argument("--auc-margin", type=float, default=0.005)
+    p.add_argument("--n-boot", type=int, default=1000)
+    p.add_argument("--output", default=None, help="write the Markdown report")
+    p.set_defaults(func=_challenge)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

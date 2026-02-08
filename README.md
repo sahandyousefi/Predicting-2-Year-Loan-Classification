@@ -95,7 +95,7 @@ flowchart LR
 .
 ├── configs/default.yaml            split, model and cost parameters
 ├── data/README.md                  dataset source, dictionary and validation rules
-├── docs/model_card.md              intended use, factors, metrics, caveats
+├── docs/                           methodology, model card
 ├── notebooks/                      exploration notebook
 ├── src/credit_risk/
 │   ├── cli.py                      credit-risk command
@@ -138,6 +138,8 @@ credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
 
 ## Methodology
+
+This section summarizes the approach; [docs/methodology.md](docs/methodology.md) gives the notation, derivations, assumptions and references in full.
 
 **Target and data.** `dlq_2yrs = 1` if the borrower was 90 or more days past due within two years. The benchmark has 16,714 borrowers and ten numeric attributes. Its default rate is far higher than in a production portfolio, which matters for calibration and cut-offs.
 
@@ -202,7 +204,7 @@ Tests run on synthetic data only and cover validation, features, every model fam
 - The credit policy used for retrieval is illustrative and was written for this project.
 - The loan-purpose text is synthetic. Any gain from text features measures the generator, not real applicants.
 
-See [ROADMAP.md](ROADMAP.md) for planned work and [docs/model_card.md](docs/model_card.md) for the model card.
+See [docs/methodology.md](docs/methodology.md) for the full statistical design, [docs/model_card.md](docs/model_card.md) for the model card and [ROADMAP.md](ROADMAP.md) for planned work.
 
 ## References
 

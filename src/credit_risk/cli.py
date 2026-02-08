@@ -130,6 +130,33 @@ def _challenge(args: argparse.Namespace) -> int:
     return 0
 
 
+def _text_ablation(args: argparse.Namespace) -> int:
+    from credit_risk.data.io import load_dataset
+    from credit_risk.data.synthetic import SyntheticSpec, make_synthetic
+    from credit_risk.evaluation.ablation import signal_sweep
+    from credit_risk.evaluation.compare import to_markdown
+
+    df = (
+        load_dataset(args.data)
+        if args.data
+        else make_synthetic(SyntheticSpec(n=args.n, seed=args.seed))
+    )
+    table = signal_sweep(
+        df,
+        signals=args.signals,
+        seed=args.seed,
+        learners=args.learners,
+        n_components=args.dims,
+        backend=args.backend,
+        n_splits=args.folds,
+        n_repeats=args.repeats,
+    ).round(4)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -173,6 +200,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--n-boot", type=int, default=1000)
     p.add_argument("--output", default=None, help="write the Markdown report")
     p.set_defaults(func=_challenge)
+
+    p = sub.add_parser("text-ablation", help="ablation of text embedding features")
+    p.add_argument("--data", default=None, help="labeled CSV; synthetic if omitted")
+    p.add_argument("--n", type=int, default=5000, help="synthetic sample size")
+    p.add_argument("--signals", type=float, nargs="+", default=[0.0, 0.5, 1.0])
+    p.add_argument("--learners", nargs="+", default=["logistic", "hist_gbm"])
+    p.add_argument("--dims", type=int, nargs="+", default=[8, 16])
+    p.add_argument("--backend", choices=["tfidf", "sbert"], default="tfidf")
+    p.add_argument("--folds", type=int, default=5)
+    p.add_argument("--repeats", type=int, default=2)
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_text_ablation)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

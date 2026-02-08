@@ -45,7 +45,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 6: LLM applications
 
-- [ ] 6.7b Ablation study of text embedding features
 
 ## Phase 7: Documentation
 
@@ -94,3 +93,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-07: 7.3 README rewrite for the package
 - [x] 2026-02-08: 4.4 Champion-challenger evaluation
 - [x] 2026-02-08: 6.7a Synthetic loan-purpose descriptions and a text embedding module
+- [x] 2026-02-08: 6.7b Ablation study of text embedding features

@@ -52,6 +52,21 @@ The notebook fitted the scaler on the full dataset before splitting. The package
 
 Results to be filled from a full run on the benchmark data with `credit-risk train` and `credit-risk compare`. The comparison table reports discrimination, calibration, DeLong p-values against the best model and realized profit at the chosen cut-off.
 
+### Text embedding ablation (synthetic data)
+
+The table below comes from synthetic data only: 5,000 generated borrowers with generated purpose text, 16 LSA components, 5-fold cross-validation repeated twice. It checks that the ablation detects incremental signal when the generator puts it there and finds none when $\gamma = 0$. It says nothing about the value of text on real applications.
+
+| Signal $\gamma$ | Learner | AUC, structured | AUC, structured + text | Gain | Corrected $t$-test p |
+| --- | --- | --- | --- | --- | --- |
+| 0.0 | Logistic | 0.732 | 0.730 | -0.002 | 0.25 |
+| 0.0 | HistGBM | 0.710 | 0.712 | 0.002 | 0.64 |
+| 0.5 | Logistic | 0.732 | 0.762 | 0.030 | < 0.001 |
+| 0.5 | HistGBM | 0.710 | 0.752 | 0.042 | < 0.001 |
+| 1.0 | Logistic | 0.732 | 0.836 | 0.104 | < 0.001 |
+| 1.0 | HistGBM | 0.710 | 0.832 | 0.122 | < 0.001 |
+
+Reproduce with `credit-risk text-ablation --n 5000 --dims 16 --seed 0`.
+
 ## Architecture
 
 ```mermaid
@@ -117,6 +132,7 @@ credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
 credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
 credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
+credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -127,7 +143,7 @@ credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
 
 **Features.** Debt and income per household member, credit-to-income, a delinquency severity score $s = 1\cdot n_{30\text{-}59} + 2\cdot n_{60\text{-}89} + 3\cdot n_{90+}$ that replaces three counts with pairwise correlations near 0.99, and $\log(1+x)$ transforms of skewed amounts.
 
-**Text features.** The benchmark has no text field, so `data/synthetic_text.py` attaches a short loan-purpose statement to each row. The purpose category $k$ is drawn with probability $\pi_k \propto p_k \exp\{\gamma\, s_k (2y-1)\}$, where $p_k$ is a prior share, $s_k$ a risk shift and $\gamma$ a signal strength; $\gamma = 0$ gives text that is independent of the outcome. `TextEmbedder` turns the text into $d$ dense features, either by TF-IDF on word unigrams and bigrams followed by truncated SVD (latent semantic analysis; Deerwester et al., 1990) or by Sentence-BERT embeddings reduced with PCA. The reduction is fitted inside the pipeline, so no test-fold vocabulary leaks into training.
+**Text features.** The benchmark has no text field, so `data/synthetic_text.py` attaches a short loan-purpose statement to each row. The purpose category $k$ is drawn with probability $\pi_k \propto p_k \exp\{\gamma\, s_k (2y-1)\}$, where $p_k$ is a prior share, $s_k$ a risk shift and $\gamma$ a signal strength; $\gamma = 0$ gives text that is independent of the outcome. `TextEmbedder` turns the text into $d$ dense features, either by TF-IDF on word unigrams and bigrams followed by truncated SVD (latent semantic analysis; Deerwester et al., 1990) or by Sentence-BERT embeddings reduced with PCA. The reduction is fitted inside the pipeline, so no test-fold vocabulary leaks into training. The ablation compares structured, text-only and combined feature sets on identical repeated $K$-fold splits. Fold AUC differences $d_j$ are tested with the corrected resampled $t$-statistic $t = \bar d \,/\, \sqrt{(1/J + n_{\text{test}}/n_{\text{train}})\, \hat\sigma_d^2}$ of Nadeau and Bengio (2003), because the usual paired $t$-test ignores the overlap between training sets and is anti-conservative.
 
 **Scorecard.** Each attribute is binned on quantiles, adjacent bins are merged until the default rate is monotonic, and bins are encoded by Weight of Evidence $\mathrm{WoE}_i = \ln(g_i/G) - \ln(b_i/B)$. Information Value $\sum_i (g_i/G - b_i/B)\,\mathrm{WoE}_i$ ranks attributes. A logistic model on WoE values is scaled to points with $\text{score} = \text{offset} + \text{factor}\cdot\ln(\text{odds}_{good})$, $\text{factor} = \text{pdo}/\ln 2$ (Siddiqi, 2006).
 
@@ -198,6 +214,7 @@ See [ROADMAP.md](ROADMAP.md) for planned work and [docs/model_card.md](docs/mode
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.
 - Mitchell, M., et al. (2019). Model cards for model reporting. *FAT\**.
+- Nadeau, C., and Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*, 52(3), 239-281.
 - Niculescu-Mizil, A., and Caruana, R. (2005). Predicting good probabilities with supervised learning. *ICML*.
 - Reimers, N., and Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. *EMNLP-IJCNLP*.
 - Siddiqi, N. (2006). *Credit Risk Scorecards: Developing and Implementing Intelligent Credit Scoring*. Wiley.

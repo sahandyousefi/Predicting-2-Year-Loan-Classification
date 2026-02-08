@@ -49,6 +49,33 @@ This file tracks the development plan for the credit risk project. The notebook 
 ## Phase 7: Documentation
 
 
+## Phase 8: Validation and robustness
+
+- [ ] 8.1 Synthetic vintage column and out-of-time validation
+- [ ] 8.2 Monotonic constraints in gradient boosting models
+- [ ] 8.3 Bootstrap confidence intervals for every reported metric
+- [ ] 8.4 Conformal prediction and Venn-Abers intervals for PD
+- [ ] 8.5 Prior-shift recalibration of PD to a target portfolio default rate
+- [ ] 8.6 Reject inference on a synthetic through-the-door population
+
+## Phase 9: Advanced modeling
+
+- [ ] 9.1 Discrete-time survival model for time to default
+- [ ] 9.2 Tabular neural network baseline in PyTorch as an optional extra
+- [ ] 9.3 Stacked ensemble with out-of-fold predictions
+
+## Phase 10: LLM applications II
+
+- [ ] 10.1 LLM extraction of structured fields from free-text applications with schema validation
+- [ ] 10.2 Consistency checks between extracted fields and bureau attributes
+- [ ] 10.3 Prompt version comparison report on the evaluation sets
+
+## Phase 11: Reporting
+
+- [ ] 11.1 Notebooks that reproduce the key figures on synthetic data
+- [ ] 11.2 Static HTML validation report generated from a run
+- [ ] 11.3 Streamlit app for single-applicant scoring and explanation
+
 ## Completed
 
 - [x] 2026-02-02: 1.1 Package layout under src/credit_risk with pyproject.toml and optional extras

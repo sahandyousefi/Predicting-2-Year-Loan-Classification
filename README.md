@@ -95,7 +95,7 @@ flowchart LR
 .
 ├── configs/default.yaml            split, model and cost parameters
 ├── data/README.md                  dataset source, dictionary and validation rules
-├── docs/                           methodology, model card
+├── docs/                           methodology, LLM design, model card
 ├── notebooks/                      exploration notebook
 ├── src/credit_risk/
 │   ├── cli.py                      credit-risk command
@@ -165,7 +165,7 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 
 ## LLM decision support
 
-The LLM layer never makes or changes a credit decision. It writes text around a decision the model has already made, and every output is checked before use.
+The LLM layer never makes or changes a credit decision. It writes text around a decision the model has already made, and every output is checked before use. [docs/llm_design.md](docs/llm_design.md) gives the architecture, validation rules, evaluation metrics and a failure-mode analysis.
 
 - **Client.** One interface for any OpenAI-compatible endpoint, including local servers, plus a deterministic mock used in all tests. Retries with exponential backoff, and token, latency and cost logging. Configured with `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` and `LLM_API_KEY`.
 - **Prompts.** Stored as versioned YAML files. Each generation records the template fingerprint.
@@ -204,7 +204,7 @@ Tests run on synthetic data only and cover validation, features, every model fam
 - The credit policy used for retrieval is illustrative and was written for this project.
 - The loan-purpose text is synthetic. Any gain from text features measures the generator, not real applicants.
 
-See [docs/methodology.md](docs/methodology.md) for the full statistical design, [docs/model_card.md](docs/model_card.md) for the model card and [ROADMAP.md](ROADMAP.md) for planned work.
+See [docs/methodology.md](docs/methodology.md) for the full statistical design, [docs/llm_design.md](docs/llm_design.md) for the LLM layer, [docs/model_card.md](docs/model_card.md) for the model card and [ROADMAP.md](ROADMAP.md) for planned work.
 
 ## References
 

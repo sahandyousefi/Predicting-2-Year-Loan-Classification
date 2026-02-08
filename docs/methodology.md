@@ -20,6 +20,8 @@ Two properties of $\hat p$ are evaluated separately. Discrimination is the abili
 
 **Splits.** The default design is a stratified 80/20 train-test split with a fixed seed. Model selection and hyperparameter search only ever see the training part. Cross-validation on the training part uses stratified $K$-fold splits. When hyperparameters are tuned, nested cross-validation (5 outer folds, 3 inner folds) separates selection from evaluation; reporting the inner-loop score instead would be optimistically biased (Varma and Simon, 2006; Cawley and Talbot, 2010). The package records the mean gap between inner and outer AUC as an estimate of that optimism.
 
+**Out-of-time design.** A random split measures sampling error only. In production a model is applied to applicants who arrive after its development window, so it is also exposed to population drift. `evaluation.oot.oot_validation` fits the model on application months before a cut-off month $\tau$, keeps a stratified random holdout from that development window, and evaluates on all months $\ge \tau$. The gap between in-time and out-of-time results, read against the DeLong confidence intervals of each AUC and the PSI of the score, separates the two sources of error. Because the benchmark has no dates, `data.vintage.add_vintage` assigns synthetic months. With drift parameter $\kappa = 0$ the assignment is random; with $\kappa > 0$ rows are ordered by $\kappa z_i + \varepsilon_i$, where $z_i$ is the standardized rank of revolving utilization and $\varepsilon_i \sim N(0,1)$, so later months contain more highly utilized borrowers. The draws come from a random stream separate from the one that generated the attributes, so with $\kappa = 0$ the months are independent of every attribute.
+
 **Synthetic data.** Tests and CI never use the real file. `data.synthetic.make_synthetic` draws a sample with the same schema: correlated delinquency counts from a shared gamma-distributed stress factor, lognormal income and debt ratio, and a logistic outcome whose intercept is solved numerically to hit a requested default rate. The coefficient signs follow the directions seen in the benchmark; their magnitudes are not estimates. Numbers computed on synthetic data are reported only as checks of the code and are labeled as such.
 
 ## 3. Features
@@ -125,7 +127,7 @@ The ablation fits structured-only, text-only and combined pipelines on identical
 ## 10. Assumptions and limitations
 
 - The two-year outcome window is taken as given by the dataset; censoring and early closure are not observed.
-- Without application dates the validation is in-time only. Performance on later vintages is likely to be lower, and production use requires out-of-time validation.
+- Without application dates the out-of-time design can only be exercised on synthetic vintages. Performance on real later vintages is likely to be lower, and production use requires out-of-time validation on dated data.
 - The benchmark default rate is not representative, so PDs need the prior-shift adjustment above and recalibration on the target population.
 - Only approved and booked accounts have outcomes. Rejected applicants are missing from the sample, so the model is fitted on a selected population (reject inference is not attempted).
 - LGD, EAD and margin are constants set by assumption. In practice they vary by applicant and product.

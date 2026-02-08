@@ -27,7 +27,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value, dense embeddings of loan-purpose text (LSA or Sentence-BERT) |
 | Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
-| Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow |
+| Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, out-of-time validation by application month |
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin |
 | Explainability | Exact linear SHAP and TreeSHAP, reason codes grouped to borrower attributes, PDP and ICE |
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
@@ -58,12 +58,12 @@ The table below comes from synthetic data only: 5,000 generated borrowers with g
 
 | Signal $\gamma$ | Learner | AUC, structured | AUC, structured + text | Gain | Corrected $t$-test p |
 | --- | --- | --- | --- | --- | --- |
-| 0.0 | Logistic | 0.732 | 0.730 | -0.002 | 0.25 |
-| 0.0 | HistGBM | 0.710 | 0.712 | 0.002 | 0.64 |
-| 0.5 | Logistic | 0.732 | 0.762 | 0.030 | < 0.001 |
-| 0.5 | HistGBM | 0.710 | 0.752 | 0.042 | < 0.001 |
-| 1.0 | Logistic | 0.732 | 0.836 | 0.104 | < 0.001 |
-| 1.0 | HistGBM | 0.710 | 0.832 | 0.122 | < 0.001 |
+| 0.0 | Logistic | 0.732 | 0.731 | -0.001 | 0.54 |
+| 0.0 | HistGBM | 0.710 | 0.708 | -0.002 | 0.58 |
+| 0.5 | Logistic | 0.732 | 0.756 | 0.024 | < 0.001 |
+| 0.5 | HistGBM | 0.710 | 0.745 | 0.035 | < 0.001 |
+| 1.0 | Logistic | 0.732 | 0.839 | 0.106 | < 0.001 |
+| 1.0 | HistGBM | 0.710 | 0.834 | 0.124 | < 0.001 |
 
 Reproduce with `credit-risk text-ablation --n 5000 --dims 16 --seed 0`.
 
@@ -133,6 +133,7 @@ credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
 credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
 credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
+credit-risk oot data.csv --cutoff 2020-07 --shift 1.0
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -160,6 +161,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 **Fairness.** Age is a model input and a protected basis. The fairness report gives approval rates, disparate impact against the most-approved band (four-fifths rule) and the difference in approval rates among borrowers who did not default (equal opportunity), with 62 and over as a separate band.
 
 **Monitoring.** The Population Stability Index $\sum_i (a_i - e_i)\ln(a_i/e_i)$ is computed per input and on the score; values above 0.25 are flagged. Every training run records hashes of the configuration and data, library versions and the git commit.
+
+**Out-of-time validation.** `credit-risk oot` fits the model on application months before a cut-off, keeps a random in-time holdout, and reports AUC with DeLong confidence intervals, Gini, KS and Brier score on the holdout and on all later months, together with the default rate, mean PD and AUC per month and the PSI of the score between development and out-of-time samples. Since the benchmark has no dates, `data/vintage.py` assigns synthetic months: at random when the drift parameter is zero, which makes the out-of-time sample exchangeable with the holdout, or ordered by a noisy rank of revolving utilization when it is positive, which imitates gradual population drift.
 
 **Champion-challenger.** A candidate model replaces the production model only after a paired comparison on the same labeled out-of-sample applicants, each model at its own cut-off. Promotion requires three conditions: the DeLong lower confidence bound of $\mathrm{AUC}_{1}-\mathrm{AUC}_{0}$ above $-\delta_{\mathrm{AUC}}$ (non-inferiority), the paired bootstrap upper bound of the Brier score difference below $\delta_{B}$, and the bootstrap lower bound of the profit difference per applicant above zero. The swap-set table reports the bad rate of applicants the challenger would newly approve (swap-in) and newly decline (swap-out), which is how a policy change is usually explained to credit committees.
 
@@ -197,7 +200,7 @@ Tests run on synthetic data only and cover validation, features, every model fam
 
 ## Limitations
 
-- The benchmark has no application dates, so out-of-time validation is not possible.
+- The benchmark has no application dates. Out-of-time validation is implemented and tested on synthetic vintages, but its results on the benchmark would only reflect the vintage generator, not real temporal stability.
 - The default rate of the benchmark is far higher than in real portfolios; PDs must be recalibrated to the target default rate before pricing.
 - LGD, EAD and margin in the configuration are illustrative.
 - No protected attribute other than age is available, so proxy discrimination cannot be measured directly.

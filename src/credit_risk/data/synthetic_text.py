@@ -16,6 +16,7 @@ import pandas as pd
 from credit_risk.data.schema import TARGET
 
 TEXT_COLUMN = "purpose_text"
+_TEXT_STREAM = 101
 
 # (prior share, log-odds shift towards default)
 PURPOSES: dict[str, tuple[float, float]] = {
@@ -107,7 +108,9 @@ def make_purpose_text(
     seed : int
         Random seed.
     """
-    rng = np.random.default_rng(seed)
+    # A separate stream keeps the text independent of the attribute draws made
+    # by make_synthetic with the same seed.
+    rng = np.random.default_rng([seed, _TEXT_STREAM])
     y = np.asarray(y, dtype=float)
     names = list(PURPOSES)
     prior = np.array([PURPOSES[k][0] for k in names])

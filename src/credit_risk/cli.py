@@ -157,6 +157,29 @@ def _text_ablation(args: argparse.Namespace) -> int:
     return 0
 
 
+def _oot(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from credit_risk.data.io import load_dataset
+    from credit_risk.data.vintage import VINTAGE_COLUMN, add_vintage
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.evaluation.oot import oot_validation
+
+    df = load_dataset(args.data)
+    if VINTAGE_COLUMN not in df.columns:
+        print(f"no '{VINTAGE_COLUMN}' column, assigning synthetic vintages")
+        df = add_vintage(df, args.start, args.n_months, args.shift, seed=args.seed)
+    report = oot_validation(df, args.cutoff, args.model, seed=args.seed)
+    out = Path(args.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    report.summary.to_csv(out / "oot_summary.csv", index=False)
+    report.by_vintage.to_csv(out / "oot_by_vintage.csv", index=False)
+    print(to_markdown(report.summary.round(4)))
+    stability = report.score_stability
+    print(f"score PSI {stability['psi']} ({stability['status']})")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -213,6 +236,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output", default=None)
     p.set_defaults(func=_text_ablation)
+
+    p = sub.add_parser("oot", help="out-of-time validation by application month")
+    p.add_argument("data")
+    p.add_argument("--cutoff", required=True, help="first out-of-time month YYYY-MM")
+    p.add_argument("--model", default="logistic")
+    p.add_argument("--start", default="2019-01", help="first synthetic vintage")
+    p.add_argument("--n-months", type=int, default=24)
+    p.add_argument("--shift", type=float, default=0.0, help="synthetic drift")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output-dir", default="artifacts")
+    p.set_defaults(func=_oot)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

@@ -27,3 +27,10 @@ def test_train_then_batch_score(tmp_path):
         == 0
     )
     assert len(pd.read_csv(outp)) == 50
+
+    shifted = tmp_path / "shifted.csv"
+    args = ["score", str(inp), str(shifted), "--model", str(out_dir / "model.joblib")]
+    assert main([*args, "--target-rate", "0.05"]) == 0
+    result = pd.read_csv(shifted)
+    assert (result["pd_target"] <= result["pd"] + 1e-6).all()
+    assert (result["decision"] == pd.read_csv(outp)["decision"]).all()

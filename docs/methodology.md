@@ -88,7 +88,7 @@ and by the Hosmer-Lemeshow statistic $\sum_m (O_m - E_m)^2 / [E_m(1 - E_m/n_m)]$
 
 $$\operatorname{logit} \hat p'(x) = \operatorname{logit} \hat p(x) + \ln\frac{\pi'}{1-\pi'} - \ln\frac{\pi}{1-\pi},$$
 
-which is exact when only the class priors change (Saerens et al., 2002). Rankings, and therefore AUC, Gini and KS, are unaffected.
+which is exact when only the class priors change (Saerens et al., 2002). Rankings, and therefore AUC, Gini and KS, are unaffected. A model fitted with class weights $w_0, w_1$ on a sample with default rate $\pi$ is calibrated to the effective rate $\pi_w = w_1\pi / (w_1\pi + w_0(1-\pi))$, which equals $0.5$ for balanced weights; $\pi_w$, not $\pi$, is the source rate in the adjustment. When the target rate is unknown, it is estimated from unlabeled target scores by the EM procedure of the same paper: starting from $\pi^{(0)} = \pi_w$, PDs are adjusted to $\pi^{(t)}$ and $\pi^{(t+1)}$ is set to their mean, until the rate stops changing. The fixed point is the maximum likelihood estimate of the target prior under the prior-shift assumption. After adjustment, calibration in the large is checked by $z = (O - E)/\sqrt{\sum_i \hat p_i(1-\hat p_i)}$, the standardized difference between observed and expected defaults. The test assumes independent defaults, so in a portfolio with correlated defaults it rejects too often.
 
 ## 6. Decision layer
 

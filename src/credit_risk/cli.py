@@ -116,6 +116,12 @@ def _score(args: argparse.Namespace) -> int:
     bundle = load_bundle(args.model)
     raw = load_dataset(args.input, require_target=False)
     scored = score_frame(bundle, raw)
+    if args.target_rate is not None:
+        from credit_risk.models.prior_shift import adjust_to_prior
+
+        scored["pd_target"] = adjust_to_prior(
+            scored["pd"], args.source_rate, args.target_rate
+        ).round(6)
     scored.to_csv(args.output, index=False)
     share = (scored["decision"] == "approve").mean()
     print(f"scored {len(scored)} rows, approval rate {share:.3f}, wrote {args.output}")
@@ -267,6 +273,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("input")
     p.add_argument("output")
     p.add_argument("--model", default="artifacts/model.joblib")
+    p.add_argument(
+        "--target-rate", type=float, default=None, help="portfolio default rate"
+    )
+    p.add_argument(
+        "--source-rate",
+        type=float,
+        default=0.5,
+        help="rate the PDs are calibrated to; 0.5 for balanced class weights",
+    )
     p.set_defaults(func=_score)
 
     p = sub.add_parser("challenge", help="champion-challenger comparison")

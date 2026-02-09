@@ -159,7 +159,7 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 
 **Uncertainty.** `credit-risk compare --n-boot B` and the training report give a stratified bootstrap interval for every metric, including approval rate, bad rate and profit per applicant at a fixed cut-off. All models share the same resamples. Differences between models are still judged with paired tests, since overlapping intervals do not imply an insignificant difference.
 
-**Calibration.** Probabilities are checked with the Brier score, expected calibration error and the Hosmer-Lemeshow test, and corrected with Platt scaling or isotonic regression on held-out data (Niculescu-Mizil and Caruana, 2005).
+**Calibration.** Probabilities are checked with the Brier score, expected calibration error and the Hosmer-Lemeshow test, and corrected with Platt scaling or isotonic regression on held-out data (Niculescu-Mizil and Caruana, 2005). Because the benchmark default rate is far above that of a real portfolio, PDs are mapped to a target rate $\pi'$ by the log-odds shift $\operatorname{logit}\hat p' = \operatorname{logit}\hat p + \operatorname{logit}\pi' - \operatorname{logit}\pi_w$, where $\pi_w$ is the effective rate of the weighted training sample (Saerens et al., 2002). If $\pi'$ is unknown it is estimated from unlabeled scores by EM. `credit-risk score --target-rate` adds the adjusted PD to the output; decisions are unchanged because the ranking is.
 
 **Cut-off.** Approving a loan earns margin $m$ with probability $1-\mathrm{PD}$ and loses $\mathrm{LGD}$ with probability $\mathrm{PD}$, so with calibrated PDs the break-even cut-off is $\mathrm{PD}^* = m/(m+\mathrm{LGD})$. The package also searches the empirical profit curve, since PDs are never perfectly calibrated. LGD, EAD and margin are set in `configs/default.yaml` and are assumptions, not estimates.
 
@@ -210,7 +210,7 @@ Tests run on synthetic data only and cover validation, features, every model fam
 ## Limitations
 
 - The benchmark has no application dates. Out-of-time validation is implemented and tested on synthetic vintages, but its results on the benchmark would only reflect the vintage generator, not real temporal stability.
-- The default rate of the benchmark is far higher than in real portfolios; PDs must be recalibrated to the target default rate before pricing.
+- The default rate of the benchmark is far higher than in real portfolios. The prior-shift adjustment assumes that only the default rate differs; if the borrower mix also differs, PDs must be recalibrated on labeled data from the target portfolio.
 - LGD, EAD and margin in the configuration are illustrative.
 - No protected attribute other than age is available, so proxy discrimination cannot be measured directly.
 - The credit policy used for retrieval is illustrative and was written for this project.
@@ -232,6 +232,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Nadeau, C., and Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*, 52(3), 239-281.
 - Niculescu-Mizil, A., and Caruana, R. (2005). Predicting good probabilities with supervised learning. *ICML*.
 - Reimers, N., and Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. *EMNLP-IJCNLP*.
+- Saerens, M., Latinne, P., and Decaestecker, C. (2002). Adjusting the outputs of a classifier to new a priori probabilities: A simple procedure. *Neural Computation*, 14(1), 21-41.
 - Siddiqi, N. (2006). *Credit Risk Scorecards: Developing and Implementing Intelligent Credit Scoring*. Wiley.
 - Sun, X., and Xu, W. (2014). Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves. *IEEE Signal Processing Letters*, 21(11), 1389-1393.
 - Vovk, V., Gammerman, A., and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.

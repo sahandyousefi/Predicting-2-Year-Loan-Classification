@@ -7,10 +7,23 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import brier_score_loss
 
 
+def quantile_bins(y_prob, n_bins: int = 10) -> np.ndarray:
+    """Equal-count bin index of each prediction, ties broken by position.
+
+    Same assignment as ``pd.qcut(pd.Series(p).rank(method="first"), n_bins)``
+    without the pandas overhead, which matters inside bootstrap loops.
+    """
+    p = np.asarray(y_prob, dtype=float)
+    ranks = np.empty(len(p))
+    ranks[np.argsort(p, kind="stable")] = np.arange(1, len(p) + 1)
+    edges = np.quantile(ranks, np.linspace(0, 1, n_bins + 1))
+    return np.clip(np.searchsorted(edges, ranks, side="left") - 1, 0, n_bins - 1)
+
+
 def reliability_table(y_true, y_prob, n_bins: int = 10) -> pd.DataFrame:
     """Mean predicted probability against observed rate in quantile bins."""
     df = pd.DataFrame({"y": np.asarray(y_true), "p": np.asarray(y_prob)})
-    df["bin"] = pd.qcut(df["p"].rank(method="first"), n_bins, labels=False)
+    df["bin"] = quantile_bins(df["p"], n_bins)
     table = df.groupby("bin").agg(
         count=("y", "size"), mean_pred=("p", "mean"), observed=("y", "mean")
     )
@@ -18,9 +31,11 @@ def reliability_table(y_true, y_prob, n_bins: int = 10) -> pd.DataFrame:
 
 
 def expected_calibration_error(y_true, y_prob, n_bins: int = 10) -> float:
-    t = reliability_table(y_true, y_prob, n_bins)
-    weights = t["count"] / t["count"].sum()
-    return float((weights * (t["mean_pred"] - t["observed"]).abs()).sum())
+    y = np.asarray(y_true, dtype=float)
+    p = np.asarray(y_prob, dtype=float)
+    b = quantile_bins(p, n_bins)
+    gap = np.bincount(b, p, n_bins) - np.bincount(b, y, n_bins)
+    return float(np.abs(gap).sum() / len(p))
 
 
 def hosmer_lemeshow(y_true, y_prob, n_bins: int = 10) -> tuple[float, float]:

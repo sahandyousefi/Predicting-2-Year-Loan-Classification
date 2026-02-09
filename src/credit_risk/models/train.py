@@ -20,6 +20,7 @@ from sklearn.preprocessing import StandardScaler
 
 from credit_risk.config import Config, load_config
 from credit_risk.data.io import load_dataset
+from credit_risk.evaluation.bootstrap import metric_intervals
 from credit_risk.features.engineering import FEATURE_COLUMNS, build_xy
 from credit_risk.models.linear import make_logistic
 from credit_risk.models.persistence import ModelBundle, save_bundle
@@ -91,6 +92,16 @@ def run(
         "cv_roc_auc_std": round(float(cv_auc.std()), 4),
         "test_default_threshold": evaluate(y_test, test_prob, 0.5),
         "test_tuned_threshold": evaluate(y_test, test_prob, tuned),
+        "test_intervals": {
+            row.metric: {
+                "estimate": round(row.estimate, 4),
+                "ci_low": round(row.ci_low, 4),
+                "ci_high": round(row.ci_high, 4),
+            }
+            for row in metric_intervals(
+                y_test, test_prob, n_boot=500, seed=seed
+            ).itertuples()
+        },
         "coefficients": coefs.sort_values(ascending=False).round(4).to_dict(),
     }
 

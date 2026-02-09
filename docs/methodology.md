@@ -76,6 +76,8 @@ $$t = \frac{\bar d}{\sqrt{\left(\frac{1}{J} + \frac{n_{\text{test}}}{n_{\text{tr
 
 of Nadeau and Bengio (2003), because overlapping training sets make the naive paired $t$-test anti-conservative.
 
+**Sampling uncertainty.** Every reported metric is given with a bootstrap interval. Test-set rows are resampled with replacement within each class, so the number of defaulters is fixed as in the stratified split, and all metrics and all models are evaluated on the same $B$ replicates. For a statistic $\hat\theta$ with replicates $\hat\theta^*_1, \dots, \hat\theta^*_B$ the percentile interval is $[q_{\alpha/2}, q_{1-\alpha/2}]$ of the replicates and the basic interval is $[2\hat\theta - q_{1-\alpha/2},\, 2\hat\theta - q_{\alpha/2}]$ (Efron and Tibshirani, 1993). Approval rate, bad rate among approved applicants and profit per applicant are computed at the cut-off chosen on the full test set and held fixed, so their intervals do not include the variability of choosing the cut-off. For AUC the bootstrap interval agrees closely with the DeLong interval, which the tests check. Intervals of two models on the same applicants overlap more than a paired test would suggest; differences are tested with the paired methods above, not by comparing intervals.
+
 **Calibration.** The Brier score $\frac{1}{n}\sum_i(\hat p_i - y_i)^2$ (Brier, 1950) combines calibration and refinement. Calibration alone is measured on $M$ quantile bins of $\hat p$ by the expected calibration error
 
 $$\mathrm{ECE} = \sum_{m=1}^{M} \frac{n_m}{n}\,\lvert \bar p_m - \bar y_m \rvert$$
@@ -143,6 +145,7 @@ The ablation fits structured-only, text-only and combined pipelines on identical
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 785-794.
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
+- Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
 - Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. *Annals of Statistics*, 29(5), 1189-1232.
 - Goldstein, A., Kapelner, A., Bleich, J., and Pitkin, E. (2015). Peeking inside the black box: Visualizing statistical learning with plots of individual conditional expectation. *Journal of Computational and Graphical Statistics*, 24(1), 44-65.
 - Hardt, M., Price, E., and Srebro, N. (2016). Equality of opportunity in supervised learning. *Advances in Neural Information Processing Systems*, 29.

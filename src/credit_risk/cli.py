@@ -52,7 +52,11 @@ def _compare(args: argparse.Namespace) -> int:
     from sklearn.model_selection import train_test_split
 
     from credit_risk.data.io import load_dataset
-    from credit_risk.evaluation.compare import compare_models, to_markdown
+    from credit_risk.evaluation.compare import (
+        compare_models,
+        compare_models_with_intervals,
+        to_markdown,
+    )
     from credit_risk.features.engineering import build_xy
 
     cfg = load_config(args.config)
@@ -64,11 +68,26 @@ def _compare(args: argparse.Namespace) -> int:
         stratify=y,
         random_state=cfg.data.random_state,
     )
-    table = compare_models(
-        args.models, X_tr, y_tr, X_te, y_te, cfg.cost, monotone=args.monotone
-    )
     out = Path(args.output_dir or cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
+    if args.n_boot > 0:
+        table, intervals = compare_models_with_intervals(
+            args.models,
+            X_tr,
+            y_tr,
+            X_te,
+            y_te,
+            cfg.cost,
+            monotone=args.monotone,
+            n_boot=args.n_boot,
+            seed=cfg.data.random_state,
+        )
+        intervals.to_csv(out / "model_comparison_ci.csv", index=False)
+        print(to_markdown(intervals.round(4)) + "\n")
+    else:
+        table = compare_models(
+            args.models, X_tr, y_tr, X_te, y_te, cfg.cost, monotone=args.monotone
+        )
     table.to_csv(out / "model_comparison.csv", index=False)
     (out / "model_comparison.md").write_text(to_markdown(table) + "\n")
     print(to_markdown(table))
@@ -203,6 +222,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--monotone", action="store_true", help="monotonic constraints for GBMs"
+    )
+    p.add_argument(
+        "--n-boot", type=int, default=0, help="bootstrap intervals for all metrics"
     )
     p.set_defaults(func=_compare)
 

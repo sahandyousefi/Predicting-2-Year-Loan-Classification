@@ -57,3 +57,15 @@ def test_calibration_reduces_ece_of_balanced_model(credit_df):
         "hl_stat",
         "hl_pvalue",
     }
+
+
+def test_quantile_bins_match_pandas_qcut():
+    import pandas as pd
+
+    from credit_risk.evaluation.calibration import quantile_bins
+
+    rng = np.random.default_rng(1)
+    for n in (37, 1000):
+        p = np.round(rng.uniform(size=n), 1)
+        expected = pd.qcut(pd.Series(p).rank(method="first"), 10, labels=False)
+        assert (quantile_bins(p, 10) == expected.to_numpy()).all()

@@ -27,7 +27,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value, dense embeddings of loan-purpose text (LSA or Sentence-BERT) |
 | Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
-| Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, out-of-time validation by application month |
+| Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, stratified bootstrap intervals for every reported metric, out-of-time validation by application month |
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin |
 | Explainability | Exact linear SHAP and TreeSHAP, reason codes grouped to borrower attributes, PDP and ICE |
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
@@ -130,6 +130,7 @@ credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
 credit-risk train --config configs/default.yaml
 credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
 credit-risk compare --models hist_gbm xgboost lightgbm --monotone
+credit-risk compare --models logistic hist_gbm --n-boot 1000
 credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
 credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
@@ -154,6 +155,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 **Model comparison.** All models are fitted on the same stratified split. ROC-AUC differences are tested with the DeLong et al. (1988) method for correlated ROC curves, using the fast midrank algorithm of Sun and Xu (2014). Hyperparameters are tuned with Optuna (Akiba et al., 2019) inside nested cross-validation, so the reported score is not inflated by model selection.
 
 **Monotonic constraints.** The boosting models can be fitted with expected directions per input: PD non-decreasing in utilization, debt ratio and delinquency severity, non-increasing in age and income, and free for the others. The constraint is checked after fitting as the share of ICE curves that move in the wrong direction, which must be zero. This prevents reason codes that contradict credit judgment.
+
+**Uncertainty.** `credit-risk compare --n-boot B` and the training report give a stratified bootstrap interval for every metric, including approval rate, bad rate and profit per applicant at a fixed cut-off. All models share the same resamples. Differences between models are still judged with paired tests, since overlapping intervals do not imply an insignificant difference.
 
 **Calibration.** Probabilities are checked with the Brier score, expected calibration error and the Hosmer-Lemeshow test, and corrected with Platt scaling or isotonic regression on held-out data (Niculescu-Mizil and Caruana, 2005).
 
@@ -218,6 +221,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *KDD*.
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
+- Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *NeurIPS*.
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.

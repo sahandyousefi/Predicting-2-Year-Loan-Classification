@@ -63,6 +63,8 @@ def test_run_writes_metrics(tmp_path):
     saved = json.loads((tmp_path / "artifacts" / "metrics.json").read_text())
     assert saved["cv_roc_auc_mean"] == report["cv_roc_auc_mean"]
     assert len(saved["coefficients"]) == len(FEATURE_COLUMNS)
+    auc = saved["test_intervals"]["roc_auc"]
+    assert auc["ci_low"] <= auc["estimate"] <= auc["ci_high"]
 
 
 def test_make_logistic_l1_produces_sparse_coefficients():

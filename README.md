@@ -67,6 +67,21 @@ The table below comes from synthetic data only: 5,000 generated borrowers with g
 
 Reproduce with `credit-risk text-ablation --n 5000 --dims 16 --seed 0`.
 
+### Reject inference (synthetic data)
+
+20,000 generated applicants with a 12% default rate, of whom a historical policy approved 60%. In the MAR setting the policy uses observed attributes only; in the MNAR setting it also uses a hidden variable correlated with default (`--hidden-signal 0.25`). Models are logistic regressions evaluated on a 30% holdout of all applicants, where the true outcomes of rejects are known. The observed bad rate of the held-out rejects is 0.208 (MAR) and 0.223 (MNAR).
+
+| Method | AUC, MAR | Mean PD of rejects, MAR | AUC, MNAR | Mean PD of rejects, MNAR |
+| --- | --- | --- | --- | --- |
+| Oracle (all outcomes) | 0.780 | 0.208 | 0.792 | 0.204 |
+| Known good/bad only | 0.778 | 0.199 | 0.785 | 0.111 |
+| Reweighting | 0.780 | 0.222 | 0.763 | 0.101 |
+| Fuzzy augmentation | 0.778 | 0.199 | 0.785 | 0.111 |
+| Hard cut-off | 0.781 | 0.494 | 0.791 | 0.407 |
+| Parceling, factor 2 | 0.781 | 0.337 | 0.790 | 0.197 |
+
+When selection depends only on observed attributes, the approved-only model is close to the oracle and no method improves it. When the old policy used information not in the data, the approved-only model understates the PD of rejects by half, and reweighting and fuzzy augmentation cannot correct it because they use the same attributes. Parceling corrects the level only because its factor happens to fit this generator; the same factor overstates reject risk by about 60% in the MAR case. Ranking changes little in either setting. Reproduce with `credit-risk reject-inference --hidden-signal 0 --inflation 2` and `--hidden-signal 0.25`.
+
 ## Architecture
 
 ```mermaid
@@ -100,9 +115,10 @@ flowchart LR
 ├── src/credit_risk/
 │   ├── cli.py                      credit-risk command
 │   ├── config.py                   typed YAML configuration
-│   ├── data/                       schema, loader, synthetic generator
+│   ├── data/                       schema, loader, synthetic generators, vintages
 │   ├── features/                   engineered features, WoE binning
-│   ├── models/                     pipelines, scorecard, registry, tuning, persistence
+│   ├── models/                     pipelines, scorecard, registry, tuning, conformal,
+│   │                               prior shift, reject inference, persistence
 │   ├── evaluation/                 credit metrics, calibration, DeLong, thresholds, comparison
 │   ├── explain/                    SHAP, reason codes, PDP/ICE, fairness
 │   ├── monitoring/                 drift, experiment tracking
@@ -163,6 +179,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 
 **Cut-off.** Approving a loan earns margin $m$ with probability $1-\mathrm{PD}$ and loses $\mathrm{LGD}$ with probability $\mathrm{PD}$, so with calibrated PDs the break-even cut-off is $\mathrm{PD}^* = m/(m+\mathrm{LGD})$. The package also searches the empirical profit curve, since PDs are never perfectly calibrated. LGD, EAD and margin are set in `configs/default.yaml` and are assumptions, not estimates.
 
+**Reject inference.** Outcomes exist only for approved applicants. `models/reject_inference.py` implements the approved-only baseline, inverse-probability reweighting with a fitted approval model, fuzzy augmentation, hard cut-off augmentation and parceling with an inflation factor, and `data/through_the_door.py` generates a population in which the outcomes of rejects are known, so each method can be scored against the truth. Every method depends on an assumption about the rejects that the data cannot test (Hand and Henley, 1993).
+
 **Uncertainty.** On a calibration sample not used in training, label-conditional (Mondrian) conformal prediction gives each applicant a set of outcomes that cannot be excluded at level $\alpha$, with coverage of at least $1-\alpha$ within each class (Vovk et al., 2005). Applicants with the set $\{0\}$ are approved, $\{1\}$ declined, and the rest referred to an underwriter. Inductive Venn-Abers prediction (Vovk and Petej, 2014) returns an interval $[p_0, p_1]$ for the PD and a merged estimate $p_1/(1-p_0+p_1)$; the interval widens where calibration data are sparse.
 
 **Explainability.** Linear models are explained in closed form, $\phi_j = \beta_j (x_j - \mathbb{E}[x_j])$, and tree ensembles with TreeSHAP (Lundberg and Lee, 2017). In both cases the attributions add up to the model's log-odds. Attributions of engineered features are summed back to the borrower attribute they come from, and the largest positive groups become up to four reason codes, as Regulation B requires for adverse action notices.
@@ -214,6 +232,7 @@ Tests run on synthetic data only and cover validation, features, every model fam
 - LGD, EAD and margin in the configuration are illustrative.
 - No protected attribute other than age is available, so proxy discrimination cannot be measured directly.
 - The credit policy used for retrieval is illustrative and was written for this project.
+- Reject inference is studied on synthetic applicants only. The benchmark contains no rejected applicants, and on real data the choice of method and parceling factor cannot be validated without outcomes for some rejects.
 - The loan-purpose text is synthetic. Any gain from text features measures the generator, not real applicants.
 
 See [docs/methodology.md](docs/methodology.md) for the full statistical design, [docs/llm_design.md](docs/llm_design.md) for the LLM layer, [docs/model_card.md](docs/model_card.md) for the model card and [ROADMAP.md](ROADMAP.md) for planned work.
@@ -225,6 +244,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
 - Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
+- Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *NeurIPS*.
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.

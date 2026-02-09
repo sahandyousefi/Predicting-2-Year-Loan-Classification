@@ -143,9 +143,21 @@ The ablation fits structured-only, text-only and combined pipelines on identical
 - The two-year outcome window is taken as given by the dataset; censoring and early closure are not observed.
 - Without application dates the out-of-time design can only be exercised on synthetic vintages. Performance on real later vintages is likely to be lower, and production use requires out-of-time validation on dated data.
 - The benchmark default rate is not representative, so PDs need the prior-shift adjustment above and recalibration on the target population.
-- Only approved and booked accounts have outcomes. Rejected applicants are missing from the sample, so the model is fitted on a selected population (reject inference is not attempted).
+- Only approved and booked accounts have outcomes. Rejected applicants are missing from the benchmark, so the model is fitted on a selected population. Reject inference (Section 11) is studied on synthetic applicants only.
 - LGD, EAD and margin are constants set by assumption. In practice they vary by applicant and product.
 - The text field and the credit policy used by the LLM layer are written for this project and are not real data.
+
+## 11. Reject inference
+
+Let $A \in \{0, 1\}$ indicate approval by the historical policy, so that $y$ is observed only when $A = 1$. A model fitted on approved applicants (known good/bad, KGB) estimates $\Pr(y = 1 \mid x, A = 1)$, which equals the target $\Pr(y = 1 \mid x)$ when selection is missing at random given the model inputs, $A \perp y \mid x$. Five methods are implemented:
+
+- *KGB*: logistic regression on approved applicants.
+- *Reweighting*: approved applicants weighted by $1/\hat\Pr(A = 1 \mid x)$ from a logistic approval model, with weights capped to limit variance. It targets the through-the-door population and is consistent under missing at random.
+- *Fuzzy augmentation*: each reject enters twice, as bad with weight $\hat p_{\text{KGB}}(x)$ and as good with weight $1 - \hat p_{\text{KGB}}(x)$.
+- *Hard cut-off augmentation*: rejects with $\hat p_{\text{KGB}}$ above a cut-off are labeled bad and the rest good.
+- *Parceling*: rejects are grouped into quantile bands of $\hat p_{\text{KGB}}$ and labeled bad at random with probability $\min(1, k\,\bar p_b)$, where $\bar p_b$ is the band mean and $k \ge 1$ an inflation factor (Siddiqi, 2006).
+
+The first four use only $x$ and the observed outcomes, so if the old policy used information $h$ that is absent from the data and related to $y$ (missing not at random), none of them can remove the bias; parceling removes it only to the extent that $k$ is chosen correctly, and $k$ cannot be estimated without outcomes for rejects (Hand and Henley, 1993; Crook and Banasik, 2004). The synthetic through-the-door generator makes the mechanism explicit. The old policy ranks applicants by a linear score of delinquency, utilization and income plus $0.7\,h$, with $h = \eta(2y - 1) + \varepsilon$, and approves a fixed share; $\eta = 0$ gives missing at random and $\eta > 0$ missing not at random. Since the outcomes of rejects are kept for evaluation, each method is scored against the truth on a holdout of all applicants. The study supports the usual practical conclusion: reject inference is a sensitivity analysis, and the reliable remedies are outcome data on rejects, from a bureau or from a small randomized approval test below the cut-off.
 
 ## References
 
@@ -153,11 +165,13 @@ The ablation fits structured-only, text-only and combined pipelines on identical
 - Brier, G. W. (1950). Verification of forecasts expressed in terms of probability. *Monthly Weather Review*, 78(1), 1-3.
 - Cawley, G. C., and Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. *Journal of Machine Learning Research*, 11, 2079-2107.
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 785-794.
+- Crook, J., and Banasik, J. (2004). Does reject inference really improve the performance of application scoring models? *Journal of Banking and Finance*, 28(4), 857-874.
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
 - Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
 - Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. *Annals of Statistics*, 29(5), 1189-1232.
 - Goldstein, A., Kapelner, A., Bleich, J., and Pitkin, E. (2015). Peeking inside the black box: Visualizing statistical learning with plots of individual conditional expectation. *Journal of Computational and Graphical Statistics*, 24(1), 44-65.
+- Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
 - Hardt, M., Price, E., and Srebro, N. (2016). Equality of opportunity in supervised learning. *Advances in Neural Information Processing Systems*, 29.
 - Hosmer, D. W., and Lemeshow, S. (1980). Goodness of fit tests for the multiple logistic regression model. *Communications in Statistics: Theory and Methods*, 9(10), 1043-1069.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.

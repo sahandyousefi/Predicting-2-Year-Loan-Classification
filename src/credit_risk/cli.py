@@ -235,6 +235,30 @@ def _conformal(args: argparse.Namespace) -> int:
     return 0
 
 
+def _reject_inference(args: argparse.Namespace) -> int:
+    from credit_risk.data.through_the_door import (
+        ThroughTheDoorSpec,
+        make_through_the_door,
+    )
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.models.reject_inference import reject_inference_study
+
+    spec = ThroughTheDoorSpec(
+        n=args.n,
+        base_rate=args.base_rate,
+        approval_rate=args.approval_rate,
+        hidden_signal=args.hidden_signal,
+        seed=args.seed,
+    )
+    table = reject_inference_study(
+        make_through_the_door(spec), inflation=args.inflation, seed=args.seed
+    ).round(4)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -325,6 +349,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--alpha", type=float, nargs="+", default=[0.05, 0.1, 0.2])
     p.add_argument("--seed", type=int, default=0)
     p.set_defaults(func=_conformal)
+
+    p = sub.add_parser(
+        "reject-inference", help="reject inference study on synthetic applicants"
+    )
+    p.add_argument("--n", type=int, default=20000)
+    p.add_argument("--base-rate", type=float, default=0.12)
+    p.add_argument("--approval-rate", type=float, default=0.6)
+    p.add_argument(
+        "--hidden-signal",
+        type=float,
+        default=0.25,
+        help="outcome information used by the old policy and absent from the data",
+    )
+    p.add_argument("--inflation", type=float, default=1.5, help="parceling factor")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_reject_inference)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

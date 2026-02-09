@@ -51,7 +51,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 8: Validation and robustness
 
-- [ ] 8.4 Conformal prediction and Venn-Abers intervals for PD
 - [ ] 8.5 Prior-shift recalibration of PD to a target portfolio default rate
 - [ ] 8.6 Reject inference on a synthetic through-the-door population
 
@@ -121,3 +120,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-08: 8.1 Synthetic vintage column and out-of-time validation
 - [x] 2026-02-09: 8.2 Monotonic constraints in gradient boosting models
 - [x] 2026-02-09: 8.3 Bootstrap confidence intervals for every reported metric
+- [x] 2026-02-09: 8.4 Conformal prediction and Venn-Abers intervals for PD

@@ -201,6 +201,34 @@ def _oot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _conformal(args: argparse.Namespace) -> int:
+    from sklearn.model_selection import train_test_split
+
+    from credit_risk.data.io import load_dataset
+    from credit_risk.data.schema import TARGET
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.features.engineering import add_engineered_features
+    from credit_risk.models.conformal import uncertainty_report
+    from credit_risk.models.persistence import load_bundle
+
+    bundle = load_bundle(args.model)
+    df = load_dataset(args.data)
+    cal, test = train_test_split(
+        df, train_size=args.cal_size, stratify=df[TARGET], random_state=args.seed
+    )
+
+    def score(frame):
+        X = add_engineered_features(frame)[bundle.features]
+        return bundle.model.predict_proba(X)[:, 1]
+
+    sets, va = uncertainty_report(
+        cal[TARGET], score(cal), test[TARGET], score(test), tuple(args.alpha)
+    )
+    print(to_markdown(sets.round(4)))
+    print(" ".join(f"{k}={v:.4f}" for k, v in va.items()))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -274,6 +302,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output-dir", default="artifacts")
     p.set_defaults(func=_oot)
+
+    p = sub.add_parser("conformal", help="conformal sets and Venn-Abers intervals")
+    p.add_argument("data", help="labeled CSV not used for training")
+    p.add_argument("--model", default="artifacts/model.joblib")
+    p.add_argument("--cal-size", type=float, default=0.5)
+    p.add_argument("--alpha", type=float, nargs="+", default=[0.05, 0.1, 0.2])
+    p.add_argument("--seed", type=int, default=0)
+    p.set_defaults(func=_conformal)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

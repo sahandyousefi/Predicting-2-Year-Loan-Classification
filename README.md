@@ -28,7 +28,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
 | Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, stratified bootstrap intervals for every reported metric, out-of-time validation by application month |
-| Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin |
+| Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin, Mondrian conformal sets with an approve, decline or refer rule, Venn-Abers PD intervals |
 | Explainability | Exact linear SHAP and TreeSHAP, reason codes grouped to borrower attributes, PDP and ICE |
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
 | Monitoring | PSI and characteristic stability, champion-challenger tests with swap-set analysis, run fingerprints, MLflow tracking with a JSON fallback |
@@ -136,6 +136,7 @@ credit-risk drift reference.csv current.csv --fail-on-drift
 credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
 credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
 credit-risk oot data.csv --cutoff 2020-07 --shift 1.0
+credit-risk conformal holdout.csv --model artifacts/model.joblib --alpha 0.05 0.1
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -161,6 +162,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 **Calibration.** Probabilities are checked with the Brier score, expected calibration error and the Hosmer-Lemeshow test, and corrected with Platt scaling or isotonic regression on held-out data (Niculescu-Mizil and Caruana, 2005).
 
 **Cut-off.** Approving a loan earns margin $m$ with probability $1-\mathrm{PD}$ and loses $\mathrm{LGD}$ with probability $\mathrm{PD}$, so with calibrated PDs the break-even cut-off is $\mathrm{PD}^* = m/(m+\mathrm{LGD})$. The package also searches the empirical profit curve, since PDs are never perfectly calibrated. LGD, EAD and margin are set in `configs/default.yaml` and are assumptions, not estimates.
+
+**Uncertainty.** On a calibration sample not used in training, label-conditional (Mondrian) conformal prediction gives each applicant a set of outcomes that cannot be excluded at level $\alpha$, with coverage of at least $1-\alpha$ within each class (Vovk et al., 2005). Applicants with the set $\{0\}$ are approved, $\{1\}$ declined, and the rest referred to an underwriter. Inductive Venn-Abers prediction (Vovk and Petej, 2014) returns an interval $[p_0, p_1]$ for the PD and a merged estimate $p_1/(1-p_0+p_1)$; the interval widens where calibration data are sparse.
 
 **Explainability.** Linear models are explained in closed form, $\phi_j = \beta_j (x_j - \mathbb{E}[x_j])$, and tree ensembles with TreeSHAP (Lundberg and Lee, 2017). In both cases the attributions add up to the model's log-odds. Attributions of engineered features are summed back to the borrower attribute they come from, and the largest positive groups become up to four reason codes, as Regulation B requires for adverse action notices.
 
@@ -231,6 +234,8 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Reimers, N., and Gurevych, I. (2019). Sentence-BERT: Sentence embeddings using Siamese BERT-networks. *EMNLP-IJCNLP*.
 - Siddiqi, N. (2006). *Credit Risk Scorecards: Developing and Implementing Intelligent Credit Scoring*. Wiley.
 - Sun, X., and Xu, W. (2014). Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves. *IEEE Signal Processing Letters*, 21(11), 1389-1393.
+- Vovk, V., Gammerman, A., and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.
+- Vovk, V., and Petej, I. (2014). Venn-Abers predictors. *Proceedings of the 30th Conference on Uncertainty in Artificial Intelligence*.
 
 ## License
 

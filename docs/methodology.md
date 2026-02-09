@@ -98,6 +98,16 @@ $$\mathbb{E}[\text{gain} \mid x] = \mathrm{EAD}\,\big[(1 - \mathrm{PD}(x))\,m - 
 
 which is positive exactly when $\mathrm{PD}(x) < \mathrm{PD}^* = m / (m + \mathrm{LGD})$. With calibrated PDs, $\mathrm{PD}^*$ is the optimal cut-off. Because calibration is never perfect, the package also evaluates the empirical profit curve $\Pi(t) = \frac{1}{n}\sum_i \mathbb{1}[\hat p_i < t]\, \mathrm{gain}_i$ over a grid of cut-offs and reports the approval rate and the bad rate among approved applicants at its maximum. The default values $m = 0.08$, $\mathrm{LGD} = 0.45$ and $\mathrm{EAD} = 1$ in `configs/default.yaml` are illustrative assumptions, not estimates, and the chosen cut-off is only as good as they are.
 
+**Uncertainty-aware decisions.** A point PD says nothing about how well the data support it. Two distribution-free methods are fitted on a calibration sample that is not used for training, and both are valid when calibration and test applicants are exchangeable.
+
+*Mondrian conformal prediction* (Vovk et al., 2005) uses the nonconformity scores $a_0 = \hat p$ for label 0 and $a_1 = 1 - \hat p$ for label 1. With $n_c$ calibration applicants of class $c$, the p-value of label $c$ for a new applicant is
+
+$$\pi_c = \frac{\#\{i : y_i = c,\ a_{c,i} \ge a_c\} + 1}{n_c + 1},$$
+
+and the prediction set at level $\alpha$ is $\Gamma^\alpha = \{c : \pi_c > \alpha\}$. Because calibration is done within each class, $\Pr(y \in \Gamma^\alpha \mid y = c) \ge 1 - \alpha$ for both classes, so the guarantee is not carried by the majority class. The set gives a three-way rule: approve when $\Gamma^\alpha = \{0\}$, decline when $\Gamma^\alpha = \{1\}$, and refer to an underwriter when the set contains both outcomes or is empty. The referral rate at a given $\alpha$ is a direct measure of how much of the population the model cannot separate.
+
+*Inductive Venn-Abers prediction* (Vovk and Petej, 2014) adds the test score $s$ to the calibration scores twice, once with label 0 and once with label 1, fits an isotonic regression to each extended sample and evaluates both at $s$. The result is an interval $[p_0, p_1]$ that contains a calibrated probability in the sense of Venn predictors. The single estimate $p = p_1 / (1 - p_0 + p_1)$ minimizes the worst-case log loss over the interval (Vovk et al., 2015). The interval is narrow where many calibration applicants have similar scores and wide in sparse regions, typically the extreme scores, which is where a fixed PD is least reliable. Isotonic regression depends only on the order of the scores, so each fit is cached on the position of $s$ among the calibration scores.
+
 ## 7. Explainability
 
 **Attributions.** For the logistic model and the scorecard, exact Shapley values of the log-odds have the closed form $\phi_j(x) = \beta_j\,(z_j(x) - \mathbb{E}_{\text{bg}}[z_j])$, with the expectation taken over a background sample from the training data. For tree ensembles, TreeSHAP computes Shapley values in polynomial time (Lundberg and Lee, 2017; Lundberg et al., 2020). In both cases $\sum_j \phi_j(x)$ equals the model's log-odds minus the base value, and the tests check this additivity.
@@ -163,4 +173,7 @@ The ablation fits structured-only, text-only and combined pipelines on identical
 - Thomas, L. C., Edelman, D. B., and Crook, J. N. (2002). *Credit Scoring and Its Applications*. SIAM.
 - Tibshirani, R. (1996). Regression shrinkage and selection via the lasso. *Journal of the Royal Statistical Society: Series B*, 58(1), 267-288.
 - Varma, S., and Simon, R. (2006). Bias in error estimation when using cross-validation for model selection. *BMC Bioinformatics*, 7, 91.
+- Vovk, V., Gammerman, A., and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.
+- Vovk, V., and Petej, I. (2014). Venn-Abers predictors. *Proceedings of the 30th Conference on Uncertainty in Artificial Intelligence*.
+- Vovk, V., Petej, I., and Fedorova, V. (2015). Large-scale probabilistic predictors with and without guarantees of validity. *Advances in Neural Information Processing Systems*, 28.
 - Zadrozny, B., and Elkan, C. (2002). Transforming classifier scores into accurate multiclass probability estimates. *Proceedings of the 8th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 694-699.

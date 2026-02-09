@@ -11,6 +11,8 @@ from credit_risk.evaluation.metrics import credit_metrics
 from credit_risk.evaluation.thresholds import optimal_threshold
 from credit_risk.models.registry import available_models, build_model
 
+GBM_MODELS = {"hist_gbm", "xgboost", "lightgbm"}
+
 
 def compare_models(
     names: Sequence[str],
@@ -19,17 +21,23 @@ def compare_models(
     X_test: pd.DataFrame,
     y_test: pd.Series,
     cost: CostConfig | None = None,
+    monotone: bool = False,
 ) -> pd.DataFrame:
     """Fit each model on the same split and report discrimination,
     calibration, a DeLong test against the best AUC, and realized profit at the
-    profit-maximizing threshold."""
+    profit-maximizing threshold.
+
+    With ``monotone=True`` the gradient boosting models are fitted with the
+    expected-direction constraints; the linear models are unchanged.
+    """
     cost = cost or CostConfig()
     probs: dict[str, pd.Series] = {}
     rows = []
     for name in names:
         if name not in available_models():
             continue
-        model = build_model(name).fit(X_train, y_train)
+        columns = list(X_train.columns) if monotone and name in GBM_MODELS else None
+        model = build_model(name, monotone_columns=columns).fit(X_train, y_train)
         p = model.predict_proba(X_test)[:, 1]
         probs[name] = p
         thr = optimal_threshold(y_test, p, cost)

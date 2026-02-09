@@ -37,3 +37,22 @@ def test_compare_cli(tmp_path, capsys):
     )
     assert rc == 0
     assert (tmp_path / "model_comparison.md").exists()
+
+
+def test_compare_monotone_cli(tmp_path):
+    data = tmp_path / "s.csv"
+    main(["synthesize", str(data), "--n", "800"])
+    rc = main(
+        [
+            "compare",
+            "--data",
+            str(data),
+            "--output-dir",
+            str(tmp_path),
+            "--models",
+            "logistic",
+            "hist_gbm",
+            "--monotone",
+        ]
+    )
+    assert rc == 0

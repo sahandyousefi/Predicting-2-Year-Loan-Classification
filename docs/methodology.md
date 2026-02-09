@@ -62,6 +62,8 @@ The defaults are $S_0 = 600$, $O_0 = 50$ and $\mathrm{pdo} = 20$. Each bin recei
 
 **Gradient boosting.** Histogram gradient boosting from scikit-learn, XGBoost (Chen and Guestrin, 2016) and LightGBM (Ke et al., 2017) fit additive tree ensembles to the log loss (Friedman, 2001). They capture interactions and non-monotone effects at the cost of a less transparent structure, which Section 7 addresses.
 
+**Monotonic constraints.** For an input $x_j$ with expected direction $c_j \in \{-1, 0, +1\}$ the ensembles can be restricted so that $c_j\,\big(\hat p(x) - \hat p(x')\big) \ge 0$ whenever $x$ and $x'$ differ only in $x_j$ and $x_j > x_j'$. All three libraries enforce this during tree growth by rejecting splits whose child values violate the order and by bounding leaf values. The directions are set by credit judgment: PD is non-decreasing in utilization, debt ratio and delinquency severity, and non-increasing in age and income; the number of open lines, dependents and credit-to-income are left free because their effect is not one-signed. The constraints are verified after fitting by the share of ICE curves, on a quantile grid of each constrained input, that move against $c_j$. A constrained model cannot produce a reason code that contradicts the stated direction, which simplifies review and adverse action explanations at a usually small cost in AUC that the comparison report measures.
+
 **Tuning.** Search spaces cover regularization strength and penalty type for the logistic model, and learning rate, tree size, minimum leaf size, subsampling and L2 regularization for the ensembles. Optuna's tree-structured Parzen estimator (Akiba et al., 2019) maximizes inner cross-validated AUC.
 
 ## 5. Evaluation

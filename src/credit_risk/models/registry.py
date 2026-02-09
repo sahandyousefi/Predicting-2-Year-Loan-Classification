@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from sklearn.ensemble import HistGradientBoostingClassifier
 
+from credit_risk.models.monotonic import constraint_vector, model_kwargs
 from credit_risk.models.scorecard import Scorecard
 from credit_risk.models.train import build_pipeline
 
@@ -77,15 +78,30 @@ def available_models() -> list[str]:
     ]
 
 
-def build_model(name: str, **params: Any):
+def build_model(
+    name: str, monotone_columns: Sequence[str] | None = None, **params: Any
+):
     """Return an unfitted estimator by name.
 
     XGBoost and LightGBM are optional: install them with ``pip install -e
     ".[gbm]"``.
+
+    Parameters
+    ----------
+    name
+        Registry key.
+    monotone_columns
+        Column order of the training frame. When given, the gradient boosting
+        models are fitted with the expected-direction constraints from
+        :mod:`credit_risk.models.monotonic`.
+    **params
+        Passed to the estimator and override the defaults.
     """
     if name not in _BUILDERS:
         raise KeyError(f"unknown model '{name}', choose from {sorted(_BUILDERS)}")
     builder, module = _BUILDERS[name]
     if module and importlib.util.find_spec(module) is None:
         raise ImportError(f"'{name}' needs the {module} package: pip install -e .[gbm]")
+    if monotone_columns is not None:
+        params = {**model_kwargs(name, constraint_vector(monotone_columns)), **params}
     return builder(**params)

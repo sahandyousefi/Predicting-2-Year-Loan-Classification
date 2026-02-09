@@ -64,7 +64,9 @@ def _compare(args: argparse.Namespace) -> int:
         stratify=y,
         random_state=cfg.data.random_state,
     )
-    table = compare_models(args.models, X_tr, y_tr, X_te, y_te, cfg.cost)
+    table = compare_models(
+        args.models, X_tr, y_tr, X_te, y_te, cfg.cost, monotone=args.monotone
+    )
     out = Path(args.output_dir or cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     table.to_csv(out / "model_comparison.csv", index=False)
@@ -198,6 +200,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--models",
         nargs="+",
         default=["logistic", "scorecard", "hist_gbm", "xgboost", "lightgbm"],
+    )
+    p.add_argument(
+        "--monotone", action="store_true", help="monotonic constraints for GBMs"
     )
     p.set_defaults(func=_compare)
 

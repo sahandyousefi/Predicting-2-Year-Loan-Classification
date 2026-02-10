@@ -333,6 +333,29 @@ def _consistency(args: argparse.Namespace) -> int:
     return 0
 
 
+def _prompt_report(args: argparse.Namespace) -> int:
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.llm.client import MockLLM, get_client
+    from credit_risk.llm.extraction_baseline import rule_based_responder
+    from credit_risk.llm.prompt_report import (
+        compare_prompt_versions,
+        echo_notice_responder,
+    )
+
+    if args.provider == "rules":
+        responder = (
+            rule_based_responder if args.task == "extraction" else echo_notice_responder
+        )
+        client = MockLLM(responder, model="offline-baseline")
+    else:
+        client = get_client(args.provider)
+    table = compare_prompt_versions(args.task, client, args.versions)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table.round(4)))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -486,6 +509,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output", default=None)
     p.set_defaults(func=_consistency)
+
+    p = sub.add_parser("prompt-report", help="compare prompt versions on a task")
+    p.add_argument("--task", choices=["notices", "extraction"], default="extraction")
+    p.add_argument("--versions", type=int, nargs="+", default=[1, 2])
+    p.add_argument(
+        "--provider",
+        default="rules",
+        help="'rules' for the offline baselines, otherwise an LLM provider",
+    )
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_prompt_report)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

@@ -218,14 +218,17 @@ def extract_fields(
     client: LLMClient,
     fields: tuple[FieldSpec, ...] = FIELDS,
     max_attempts: int = 2,
+    version: int | None = None,
 ) -> ExtractionResult:
     """Extract and validate structured fields from one application.
 
     The request is retried only when the reply is not valid JSON with a
     ``fields`` object. Field-level failures are not retried; they are
     returned in ``rejected`` for review.
+
+    ``version`` selects a prompt version; by default the production one.
     """
-    prompt = load_prompt("application_extraction")
+    prompt = load_prompt("application_extraction", version)
     screen = screen_user_text(text, max_chars=MAX_CHARS)
     empty = {f.name: None for f in fields}
     if screen.blocked:

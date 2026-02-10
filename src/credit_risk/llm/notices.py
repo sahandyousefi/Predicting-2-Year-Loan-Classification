@@ -91,14 +91,17 @@ def generate_notice(
     client: LLMClient,
     decision: str = "decline",
     max_attempts: int = 2,
+    version: int | None = None,
 ) -> NoticeResult:
     """Draft a notice with the LLM and accept it only if it passes validation.
 
     Every reason must come from the model's reason codes, in order, and the
     text must not reference a prohibited basis. Otherwise the template notice
     is returned, so a customer never receives unverified text.
+
+    ``version`` selects a prompt version; by default the production one.
     """
-    prompt = load_prompt("adverse_action")
+    prompt = load_prompt("adverse_action", version)
     listed = "\n".join(f"- {r.code}: {r.description}" for r in reasons)
     system, user = prompt.render(decision=decision, reasons=listed)
     errors: list[str] = []

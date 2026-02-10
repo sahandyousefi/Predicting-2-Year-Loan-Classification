@@ -200,6 +200,7 @@ credit-risk conformal holdout.csv --model artifacts/model.joblib --alpha 0.05 0.
 credit-risk survival --n 20000 --horizons 12 24 36
 credit-risk extract-eval --n 500 --provider rules
 credit-risk consistency --n 1000 --misstatement-rate 0.3
+credit-risk prompt-report --task extraction --versions 1 2
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -251,7 +252,7 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 The LLM layer never makes or changes a credit decision. It writes text around a decision the model has already made, and every output is checked before use. [docs/llm_design.md](docs/llm_design.md) gives the architecture, validation rules, evaluation metrics and a failure-mode analysis.
 
 - **Client.** One interface for any OpenAI-compatible endpoint, including local servers, plus a deterministic mock used in all tests. Retries with exponential backoff, and token, latency and cost logging. Configured with `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` and `LLM_API_KEY`.
-- **Prompts.** Stored as versioned YAML files. Each generation records the template fingerprint.
+- **Prompts.** Stored as versioned YAML files with a production or candidate status; callers get the latest production version. Each generation records the template fingerprint. `credit-risk prompt-report` evaluates versions side by side on the same cases and tests the difference in success rate with the exact McNemar test, so a candidate is promoted on evidence.
 - **Adverse action notices.** The prompt lists only the model's reason codes. The reply must be valid JSON, cite exactly those codes in the same order, and avoid every prohibited basis under ECOA. If it fails after a retry, a deterministic template notice is used instead.
 - **Analyst summaries.** Retrieval-augmented generation (Lewis et al., 2020) over a small credit policy written for this project. Policy sections are retrieved with a character n-gram TF-IDF retriever, or a Sentence-BERT retriever (Reimers and Gurevych, 2019) when the `embed` extra is installed. Any citation of a section that was not shown to the model is flagged.
 - **Field extraction.** Free-text applications are turned into the model's input attributes. For every field the model must return the value and a verbatim quote from the application; a value is accepted only if the quote occurs in the text, contains that number after unit handling (`5.5k`, `$4,200`, `62%`, `twice`), and the value has the declared type and bounds. Rejected fields are set to null and the application goes to review, so no number reaches the credit model unless the applicant wrote it. A rule-based extractor with the same output format is the baseline and the offline mock.
@@ -312,6 +313,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
 - Loshchilov, I., and Hutter, F. (2019). Decoupled weight decay regularization. *ICLR*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.
+- McNemar, Q. (1947). Note on the sampling error of the difference between correlated proportions or percentages. *Psychometrika*, 12(2), 153-157.
 - Mitchell, M., et al. (2019). Model cards for model reporting. *FAT\**.
 - Nadeau, C., and Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*, 52(3), 239-281.
 - Niculescu-Mizil, A., and Caruana, R. (2005). Predicting good probabilities with supervised learning. *ICML*.

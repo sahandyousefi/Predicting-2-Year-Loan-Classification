@@ -33,7 +33,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
 | Monitoring | PSI and characteristic stability, champion-challenger tests with swap-set analysis, run fingerprints, MLflow tracking with a JSON fallback |
 | Serving | Batch scoring CLI, FastAPI service with request validation, Dockerfile |
-| LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, structured field extraction with quote-level grounding, evaluation harness, prompt injection screening |
+| LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, structured field extraction with quote-level grounding, consistency checks against bureau data, evaluation harness, prompt injection screening |
 
 ## Results
 
@@ -107,6 +107,20 @@ Ranking is the same for all three, but the binary models are biased in level: dr
 
 The baseline is exact on the phrasings it covers and misses the rest, so its errors are all omissions; per field, accuracy ranges from 0.68 (age) to 1.00 (purpose). The quote check makes fabricated values impossible to accept, but not a correct number assigned to the wrong field, which the tests show with a deliberately misattributing mock. Reproduce with `credit-risk extract-eval --n 500 --provider rules`, or `--provider openai` with the `LLM_*` variables set.
 
+### Misstatement detection (synthetic applications)
+
+1,000 generated applications, 30% of which misstate one field in the applicant's favour while the bureau keeps the true value. Fields are extracted with the rule-based baseline under the same settings as above and reconciled with the bureau record. The detection rate is the share of misstated applications flagged with the matching reason code.
+
+| Misstatement | Applications | Flagged |
+| --- | --- | --- |
+| None (honest) | 714 | 0.000 |
+| Income overstated by 30% to 80% | 138 | 0.572 |
+| Debt payments understated by 40% to 70% | 86 | 0.605 |
+| Utilization understated by 40% to 70% | 38 | 0.763 |
+| Past delinquencies denied | 24 | 0.875 |
+
+A misstatement can only be caught if the field is stated and extracted, so detection is bounded by extraction recall: with phrasings the baseline fully covers, the rates rise to between 0.80 and 1.00. The zero false alarm rate holds because honest synthetic applicants state bureau values exactly. Reproduce with `credit-risk consistency --n 1000 --misstatement-rate 0.3`.
+
 ## Architecture
 
 ```mermaid
@@ -150,8 +164,8 @@ flowchart LR
 │   ├── explain/                    SHAP, reason codes, PDP/ICE, fairness
 │   ├── monitoring/                 drift, experiment tracking
 │   ├── serving/                    batch scoring, FastAPI service
-│   └── llm/                        client, prompts, notices, retrieval, extraction, guardrails,
-│                                   evaluation
+│   └── llm/                        client, prompts, notices, retrieval, extraction, bureau
+│                                   consistency, guardrails, evaluation
 ├── tests/                          unit and integration tests on synthetic data
 ├── Dockerfile
 ├── Makefile
@@ -185,6 +199,7 @@ credit-risk oot data.csv --cutoff 2020-07 --shift 1.0
 credit-risk conformal holdout.csv --model artifacts/model.joblib --alpha 0.05 0.1
 credit-risk survival --n 20000 --horizons 12 24 36
 credit-risk extract-eval --n 500 --provider rules
+credit-risk consistency --n 1000 --misstatement-rate 0.3
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -240,6 +255,7 @@ The LLM layer never makes or changes a credit decision. It writes text around a 
 - **Adverse action notices.** The prompt lists only the model's reason codes. The reply must be valid JSON, cite exactly those codes in the same order, and avoid every prohibited basis under ECOA. If it fails after a retry, a deterministic template notice is used instead.
 - **Analyst summaries.** Retrieval-augmented generation (Lewis et al., 2020) over a small credit policy written for this project. Policy sections are retrieved with a character n-gram TF-IDF retriever, or a Sentence-BERT retriever (Reimers and Gurevych, 2019) when the `embed` extra is installed. Any citation of a section that was not shown to the model is flagged.
 - **Field extraction.** Free-text applications are turned into the model's input attributes. For every field the model must return the value and a verbatim quote from the application; a value is accepted only if the quote occurs in the text, contains that number after unit handling (`5.5k`, `$4,200`, `62%`, `twice`), and the value has the declared type and bounds. Rejected fields are set to null and the application goes to review, so no number reaches the credit model unless the applicant wrote it. A rule-based extractor with the same output format is the baseline and the offline mock.
+- **Bureau consistency.** Extracted fields are compared with the bureau record. A difference beyond tolerance in the direction that flatters the applicant (income above the bureau value, debt, utilization or delinquencies below it, or a different age) is a material finding with a reason code and sends the application to review. Model inputs always take the bureau value when one exists.
 - **Evaluation.** A fixed set of reason code combinations measures format compliance, grounding, hallucination and fallback rates for any provider. Retrieval is measured with recall@k and MRR on labeled queries; the TF-IDF retriever reaches recall@3 of 0.9 and MRR of 0.87 on the current set.
 - **Guardrails.** Applicant free text is normalized, stripped of control characters and screened for instruction overrides, role changes, prompt extraction and delimiter attacks. Flagged text goes to manual review. The attack and benign examples in `llm/eval/injection_cases.yaml` serve as a regression set; they are not a measure of robustness against adaptive attacks.
 

@@ -22,6 +22,13 @@ from credit_risk.data.synthetic import SyntheticSpec, make_synthetic
 from credit_risk.data.synthetic_text import PURPOSES, TEMPLATES
 
 _APPLICATION_STREAM = 404
+_MISSTATEMENT_STREAM = 405
+MISSTATEMENTS = (
+    "income_overstated",
+    "debt_understated",
+    "utilization_understated",
+    "delinquency_understated",
+)
 WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"]
 
 Phrase = Callable[[np.random.Generator, float], str]
@@ -123,9 +130,39 @@ DISTRACTORS: list[Callable[[np.random.Generator], str]] = [
 
 @dataclass
 class ApplicationSample:
+    """Applications, the values they state, and the bureau attributes.
+
+    ``misstated`` holds the type of misstatement injected into each
+    application, or ``None`` for an honest one.
+    """
+
     texts: list[str]
     gold: list[dict[str, float | str | None]]
     attributes: pd.DataFrame
+    misstated: list[str | None]
+
+
+def _misstate(rng: np.random.Generator, values: dict[str, float]) -> str:
+    """Change one stated value in the direction that flatters the applicant."""
+    late = ("late_30_59", "late_60_89", "late_90")
+    options = ["income_overstated", "debt_understated"]
+    if values["rev_util"] >= 0.3:
+        options.append("utilization_understated")
+    if any(values[k] > 0 for k in late):
+        options.append("delinquency_understated")
+    kind = str(rng.choice(options))
+    if kind == "income_overstated":
+        values["monthly_inc"] = values["monthly_inc"] * rng.uniform(1.3, 1.8)
+    elif kind == "debt_understated":
+        values["monthly_debt"] = round(
+            values["monthly_debt"] * rng.uniform(0.3, 0.6), -1
+        )
+    elif kind == "utilization_understated":
+        values["rev_util"] = round(values["rev_util"] * rng.uniform(0.3, 0.6), 2)
+    else:
+        for k in late:
+            values[k] = 0.0
+    return kind
 
 
 def _sentence(clause: str) -> str:
@@ -137,6 +174,7 @@ def make_applications(
     missing_rate: float = 0.15,
     hard_rate: float = 0.3,
     seed: int = 0,
+    misstatement_rate: float = 0.0,
 ) -> ApplicationSample:
     """Generate applications and their gold field values.
 
@@ -151,9 +189,17 @@ def make_applications(
         which avoids the keywords the rule-based baseline relies on.
     seed : int
         Random seed.
+    misstatement_rate : float
+        Probability that an applicant misstates one field in their favour:
+        income inflated by 30% to 80%, debt payments or utilization reduced
+        by 40% to 70%, or past delinquencies denied. The bureau attributes
+        keep the true values.
     """
     attrs = make_synthetic(SyntheticSpec(n=n, base_rate=0.2, seed=seed))
     rng = np.random.default_rng([seed, _APPLICATION_STREAM])
+    # A separate stream keeps honest applications identical for any rate.
+    mis_rng = np.random.default_rng([seed, _MISSTATEMENT_STREAM])
+    misstated: list[str | None] = []
     names = list(PURPOSES)
     prior = np.array([PURPOSES[k][0] for k in names])
     texts, gold = [], []
@@ -171,6 +217,10 @@ def make_applications(
             "late_60_89": float(row["late_60_89"]),
             "late_90": float(row["late_90"]),
         }
+        draw = mis_rng.uniform()
+        misstated.append(
+            _misstate(mis_rng, values) if draw < misstatement_rate else None
+        )
         clauses = []
         late = ("late_30_59", "late_60_89", "late_90")
         never_late = all(values[k] == 0 for k in late) and rng.uniform() < 0.7
@@ -206,4 +256,4 @@ def make_applications(
         order = rng.permutation(len(clauses))
         texts.append(" ".join(_sentence(clauses[i]) for i in order))
         gold.append(record)
-    return ApplicationSample(texts, gold, attrs)
+    return ApplicationSample(texts, gold, attrs, misstated)

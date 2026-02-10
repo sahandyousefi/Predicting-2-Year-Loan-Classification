@@ -303,6 +303,36 @@ def _extract_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _consistency(args: argparse.Namespace) -> int:
+    from credit_risk.data.synthetic_applications import make_applications
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.llm.client import MockLLM, get_client
+    from credit_risk.llm.consistency import misstatement_study, reconcile
+    from credit_risk.llm.extraction import extract_fields
+    from credit_risk.llm.extraction_baseline import rule_based_responder
+
+    sample = make_applications(
+        args.n,
+        args.missing_rate,
+        args.hard_rate,
+        seed=args.seed,
+        misstatement_rate=args.misstatement_rate,
+    )
+    if args.provider == "rules":
+        client = MockLLM(rule_based_responder, model="rule-based")
+    else:
+        client = get_client(args.provider)
+    reports = [
+        reconcile(extract_fields(text, client).values, bureau)
+        for text, (_, bureau) in zip(sample.texts, sample.attributes.iterrows())
+    ]
+    table = misstatement_study(reports, sample.misstated).round(3)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -446,6 +476,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output", default=None)
     p.set_defaults(func=_extract_eval)
+
+    p = sub.add_parser("consistency", help="detection of misstated application fields")
+    p.add_argument("--n", type=int, default=1000)
+    p.add_argument("--misstatement-rate", type=float, default=0.3)
+    p.add_argument("--missing-rate", type=float, default=0.15)
+    p.add_argument("--hard-rate", type=float, default=0.3)
+    p.add_argument("--provider", default="rules")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_consistency)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

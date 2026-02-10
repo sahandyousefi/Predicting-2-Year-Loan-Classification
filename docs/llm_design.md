@@ -48,6 +48,16 @@ flowchart TB
     U[Applicant free text] --> G{Injection screen}
     G -->|flagged| MR
     G -->|clean| SP
+
+    subgraph Intake["Application intake"]
+        G -->|clean| EP[Prompt application_extraction v1]
+        EP --> C3[LLM client]
+        C3 --> V3{Types, bounds, verbatim quote containing the value}
+        V3 --> CC{Comparison with bureau record}
+        B[(Bureau attributes)] --> CC
+        CC -->|consistent| X
+        CC -->|material difference| MR
+    end
 ```
 
 Every arrow into the LLM client carries only content the system produced or screened. Raw attribute values are not placed in the notice prompt; the model sees reason codes and their fixed descriptions.
@@ -111,6 +121,12 @@ Accepted fields map to the benchmark attributes, with the debt ratio computed as
 
 `llm.extraction_baseline` implements a rule-based extractor that classifies clauses by keywords and returns the same JSON structure. It is the reference point for the LLM in the evaluation and serves as the deterministic mock in tests.
 
+### 3.8 Consistency with the bureau record
+
+An accepted extraction shows that the applicant wrote a value, not that it is true. `llm.consistency` compares each extracted field with the same attribute on the bureau record: age, monthly income, monthly debt payments (the bureau debt ratio times the income on file), revolving utilization, the three delinquency counts, open credit lines, real estate loans and dependents. A difference within tolerance is consistent: one year for age, 10% of the bureau value for income, 20% for debt payments, ten percentage points for utilization, and none for counts. A larger difference is classified by direction. It is material when it lowers the applicant's apparent risk (income above, debt payments, utilization or delinquencies below the bureau value, or any difference in age) and informational otherwise. Each material finding carries a code such as `INCOME_OVERSTATED`, and any material finding sends the application to review.
+
+The bureau is the system of record. The reconciled model inputs take the bureau value when one exists and the stated value only to fill a gap, so a misstatement or an extraction error cannot change the PD of an applicant with a complete bureau file. The same comparison catches the residual risk of Section 3.7, a correct number attached to the wrong field, when the field it lands in is on file.
+
 ## 4. Evaluation
 
 Evaluation runs offline on fixed case sets stored in `llm/eval/`, so the same numbers can be computed for any provider and compared across prompt versions.
@@ -145,6 +161,8 @@ where $\operatorname{rank}_q$ is the position of the first relevant section, wit
 
 Integers must match exactly, amounts within half a dollar and fractions within 0.005. The summary adds micro-averaged accuracy, the share of applications with every field correct, and the review rate. On these texts the rule-based baseline is exact on the phrasings it covers and misses the others. The quote check removes fabricated values but not misattributed ones: a number taken from the sentence about open credit lines and reported as the number of dependents passes, which is why extracted fields are compared with bureau attributes before use.
 
+**Consistency.** `make_applications(misstatement_rate=...)` lets a share of applicants misstate one field in their favour: income raised by 30% to 80%, debt payments or utilization cut by 40% to 70%, or past delinquencies denied. The bureau attributes keep the true values, and honest applications are generated from a separate random stream so they are identical for any misstatement rate. The study reports, by misstatement type, the share of applications flagged with the matching code, and for honest applications the share flagged for any reason. Honest applicants in the generator state bureau values exactly, so false alarms here measure extraction errors only; on real data, rounding and recall errors by honest applicants make the tolerances a trade-off between false alarms and missed misstatements.
+
 **Guardrails.** The injection set contains attack strings and benign applicant statements. The harness reports the detection rate on attacks and the false positive rate on benign text. Because the attacks are known in advance, a high detection rate shows that the patterns work as intended, not that the screen is robust.
 
 ## 5. Failure modes and controls
@@ -157,6 +175,7 @@ Integers must match exactly, amounts within half a dollar and fractions within 0
 | Unsupported policy claim in a summary | Citations restricted to retrieved identifiers | Uncited sentences are not verified against the excerpts |
 | Prompt injection through applicant text | Sanitization, pattern screen, manual review | Paraphrased attacks; mitigated by the lack of tools and decision access |
 | Extracted value not written by the applicant | Verbatim quote required and checked against the text; quote must contain the value | A misread quote, for example a count attached to the wrong delinquency bucket, passes when the number appears in it |
+| Misstated or misattributed field | Comparison with the bureau record; bureau values take precedence in model inputs | Fields without a bureau counterpart, such as the loan purpose, are not verified |
 | Silent prompt drift | Versioned prompt files and fingerprints on every output | None when fingerprints are monitored |
 | Provider outage or rate limit | Exponential backoff; template notices need no LLM | Summaries are unavailable during an outage |
 | Data leakage to a third-party endpoint | Notice prompts contain codes, not attribute values; self-hosted endpoints supported | Summaries include the PD and reason descriptions |

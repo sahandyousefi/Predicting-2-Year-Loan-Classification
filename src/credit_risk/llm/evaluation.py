@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import yaml
 
 from credit_risk.explain.reason_codes import REASON_TEXT, ReasonCode
@@ -78,3 +79,92 @@ def evaluate_guardrails(
         "detection_rate": round(float(np.mean(detected)), 4),
         "false_positive_rate": round(float(np.mean(false_pos)), 4),
     }
+
+
+def _matches(spec, predicted, truth) -> bool:
+    if spec.kind == "category":
+        return predicted == truth
+    tol = {"amount": 0.5, "percent": 5e-3}.get(spec.kind, 1e-9)
+    return abs(float(predicted) - float(truth)) <= tol
+
+
+def evaluate_extraction(
+    client: LLMClient,
+    texts: list[str],
+    gold: list[dict],
+) -> tuple[pd.DataFrame, dict]:
+    """Field-level accuracy of application extraction against gold values.
+
+    For each field, over applications that state it: ``accuracy`` is the
+    share extracted with the correct value, ``missed`` the share returned as
+    null and ``wrong`` the share with an accepted but incorrect value. Over
+    applications that do not state it, ``hallucinated`` is the share with an
+    accepted value. ``rejected`` counts field-level validation failures.
+
+    Returns the per-field table and a summary with micro-averaged accuracy,
+    the share of applications extracted without any error, the review rate
+    and token usage.
+    """
+    from credit_risk.llm.extraction import FIELDS, extract_fields
+
+    wrapped = client if isinstance(client, RetryingClient) else RetryingClient(client)
+    results = [extract_fields(text, wrapped) for text in texts]
+    rows = []
+    for spec in FIELDS:
+        stated = correct = missed = wrong = absent = halluc = rejected = 0
+        for res, truth in zip(results, gold):
+            value, true_value = res.values.get(spec.name), truth.get(spec.name)
+            rejected += spec.name in res.rejected
+            if true_value is None:
+                absent += 1
+                halluc += value is not None
+            else:
+                stated += 1
+                if value is None:
+                    missed += 1
+                elif _matches(spec, value, true_value):
+                    correct += 1
+                else:
+                    wrong += 1
+        rows.append(
+            {
+                "field": spec.name,
+                "stated": stated,
+                "accuracy": correct / stated if stated else float("nan"),
+                "missed": missed / stated if stated else float("nan"),
+                "wrong": wrong / stated if stated else float("nan"),
+                "hallucinated": halluc / absent if absent else float("nan"),
+                "rejected": rejected,
+            }
+        )
+    table = pd.DataFrame(rows)
+
+    def perfect(res, truth) -> bool:
+        for spec in FIELDS:
+            value, true_value = res.values.get(spec.name), truth.get(spec.name)
+            if (value is None) != (true_value is None):
+                return False
+            if value is not None and not _matches(spec, value, true_value):
+                return False
+        return True
+
+    stated_total = int(table["stated"].sum())
+    summary = {
+        "n_applications": len(texts),
+        "field_accuracy": round(
+            float((table["accuracy"] * table["stated"]).sum() / stated_total), 4
+        ),
+        "hallucination_rate": round(
+            float(
+                np.nansum(table["hallucinated"] * (len(texts) - table["stated"]))
+                / max(len(texts) * len(FIELDS) - stated_total, 1)
+            ),
+            4,
+        ),
+        "exact_application_rate": round(
+            float(np.mean([perfect(r, g) for r, g in zip(results, gold)])), 4
+        ),
+        "review_rate": round(float(np.mean([r.needs_review for r in results])), 4),
+        "usage": wrapped.usage.summary(),
+    }
+    return table, summary

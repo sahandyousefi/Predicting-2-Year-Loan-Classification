@@ -96,6 +96,17 @@ When selection depends only on observed attributes, the approved-only model is c
 
 Ranking is the same for all three, but the binary models are biased in level: dropping accounts censored before month 24 keeps every early default and loses survivors, which overstates PD by about 28%, and counting them as good understates it by about 25%. The hazard model uses each account for the months it was observed and gives 12-month and lifetime PDs from one fit. Reproduce with `credit-risk survival --n 20000 --censor-rate 0.03`.
 
+### Field extraction (synthetic applications)
+
+500 generated applications, each stating up to eleven fields in the first person with two distracting facts (job tenure, rent, requested amount or credit score). Each field is omitted with probability 0.15, and 30% of stated fields use a phrasing the rule-based baseline was not written for ("I bring home around $6,300 every month", "an account was three months behind once"). Accuracy is over applications that state the field.
+
+| Extractor | Field accuracy | Hallucination rate | Applications fully correct | Review rate |
+| --- | --- | --- | --- | --- |
+| Rule-based baseline | 0.773 | 0.000 | 0.094 | 0.000 |
+| LLM, prompt v1 | Results to be filled from a run with a configured provider | | | |
+
+The baseline is exact on the phrasings it covers and misses the rest, so its errors are all omissions; per field, accuracy ranges from 0.68 (age) to 1.00 (purpose). The quote check makes fabricated values impossible to accept, but not a correct number assigned to the wrong field, which the tests show with a deliberately misattributing mock. Reproduce with `credit-risk extract-eval --n 500 --provider rules`, or `--provider openai` with the `LLM_*` variables set.
+
 ## Architecture
 
 ```mermaid
@@ -130,7 +141,7 @@ flowchart LR
 │   ├── cli.py                      credit-risk command
 │   ├── config.py                   typed YAML configuration
 │   ├── data/                       schema, loader, synthetic generators, vintages,
-│   │                               performance histories
+│   │                               performance histories, application texts
 │   ├── features/                   engineered features, WoE binning
 │   ├── models/                     pipelines, scorecard, MLP, stacking, registry, tuning,
 │   │                               conformal, prior shift, reject inference, survival,
@@ -173,6 +184,7 @@ credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
 credit-risk oot data.csv --cutoff 2020-07 --shift 1.0
 credit-risk conformal holdout.csv --model artifacts/model.joblib --alpha 0.05 0.1
 credit-risk survival --n 20000 --horizons 12 24 36
+credit-risk extract-eval --n 500 --provider rules
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.

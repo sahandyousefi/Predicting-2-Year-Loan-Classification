@@ -134,6 +134,17 @@ $$\mathrm{recall@}k = \frac{1}{|Q|}\sum_{q} \frac{\lvert \{r_{q,1},\dots,r_{q,k}
 
 where $\operatorname{rank}_q$ is the position of the first relevant section, with $1/\operatorname{rank}_q = 0$ when none is retrieved (Manning et al., 2008). On the current query set the TF-IDF retriever reaches recall@3 of 0.9 and MRR of 0.87. The query set is small and written by the same author as the policy, so these figures check the retriever for regressions; they are not an estimate of performance on a real policy library.
 
+**Extraction.** `data/synthetic_applications.py` writes first-person applications from synthetic borrowers with known field values. Each field is omitted with a fixed probability, stated with one of three phrasings per field, and mixed with distracting numbers such as job tenure, rent and the requested amount. A share of stated fields uses the last phrasing in each list, which avoids the keywords of the rule-based baseline. For field $f$, with $S_f$ the applications that state it and $\bar S_f$ those that do not,
+
+| Metric | Definition |
+| --- | --- |
+| Accuracy | Share of $S_f$ with an accepted value equal to the gold value |
+| Missed | Share of $S_f$ returned as null, including rejected values |
+| Wrong | Share of $S_f$ with an accepted but incorrect value |
+| Hallucinated | Share of $\bar S_f$ with an accepted value |
+
+Integers must match exactly, amounts within half a dollar and fractions within 0.005. The summary adds micro-averaged accuracy, the share of applications with every field correct, and the review rate. On these texts the rule-based baseline is exact on the phrasings it covers and misses the others. The quote check removes fabricated values but not misattributed ones: a number taken from the sentence about open credit lines and reported as the number of dependents passes, which is why extracted fields are compared with bureau attributes before use.
+
 **Guardrails.** The injection set contains attack strings and benign applicant statements. The harness reports the detection rate on attacks and the false positive rate on benign text. Because the attacks are known in advance, a high detection rate shows that the patterns work as intended, not that the screen is robust.
 
 ## 5. Failure modes and controls

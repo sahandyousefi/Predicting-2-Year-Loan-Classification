@@ -279,6 +279,30 @@ def _survival(args: argparse.Namespace) -> int:
     return 0
 
 
+def _extract_eval(args: argparse.Namespace) -> int:
+    from credit_risk.data.synthetic_applications import make_applications
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.llm.client import MockLLM, get_client
+    from credit_risk.llm.evaluation import evaluate_extraction
+    from credit_risk.llm.extraction_baseline import rule_based_responder
+
+    sample = make_applications(
+        args.n, args.missing_rate, args.hard_rate, seed=args.seed
+    )
+    if args.provider == "rules":
+        client = MockLLM(rule_based_responder, model="rule-based")
+    else:
+        client = get_client(args.provider)
+    table, summary = evaluate_extraction(client, sample.texts, sample.gold)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table.round(3)))
+    usage = summary.pop("usage")
+    print(" ".join(f"{k}={v}" for k, v in summary.items()))
+    print(" ".join(f"{k}={v}" for k, v in usage.items()))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -402,6 +426,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output", default=None)
     p.set_defaults(func=_survival)
+
+    p = sub.add_parser(
+        "extract-eval", help="field extraction accuracy on synthetic applications"
+    )
+    p.add_argument("--n", type=int, default=500)
+    p.add_argument("--missing-rate", type=float, default=0.15)
+    p.add_argument(
+        "--hard-rate",
+        type=float,
+        default=0.3,
+        help="share of fields stated with phrasings the rule baseline does not cover",
+    )
+    p.add_argument(
+        "--provider",
+        default="rules",
+        help="'rules' for the rule-based baseline, otherwise an LLM provider",
+    )
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_extract_eval)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

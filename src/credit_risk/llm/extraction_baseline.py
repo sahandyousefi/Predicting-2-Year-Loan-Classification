@@ -16,7 +16,7 @@ from typing import Any
 
 from credit_risk.llm.extraction import FIELDS, WORD_NUMBERS, numbers_in
 
-_SENTENCE = re.compile(r"(?<!\d)[.;!?](?!\d)|\n")
+_SENTENCE = re.compile(r"[.;!?](?=\s|$)|\n")
 _CLAUSE = re.compile(r",\s+|\s+and\s+|\s+but\s+")
 _WORDS = "|".join(sorted(WORD_NUMBERS, key=len, reverse=True))
 _COUNT = re.compile(

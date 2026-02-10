@@ -67,6 +67,12 @@ def _mlp(**params: Any):
     return TabularMLP(random_state=SEED, **params)
 
 
+def _stacked(**params: Any):
+    from credit_risk.models.stacking import StackedEnsemble
+
+    return StackedEnsemble(random_state=SEED, **params)
+
+
 _BUILDERS: dict[str, tuple[Callable[..., Any], str | None]] = {
     "logistic": (_logistic, None),
     "scorecard": (_scorecard, None),
@@ -74,6 +80,7 @@ _BUILDERS: dict[str, tuple[Callable[..., Any], str | None]] = {
     "xgboost": (_xgboost, "xgboost"),
     "lightgbm": (_lightgbm, "lightgbm"),
     "mlp": (_mlp, "torch"),
+    "stacked": (_stacked, None),
 }
 
 _EXTRAS = {"xgboost": "gbm", "lightgbm": "gbm", "torch": "nn"}

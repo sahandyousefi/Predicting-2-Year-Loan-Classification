@@ -66,6 +66,12 @@ The defaults are $S_0 = 600$, $O_0 = 50$ and $\mathrm{pdo} = 20$. Each bin recei
 
 **Neural network baseline.** `TabularMLP` is a feed-forward network in PyTorch with ReLU layers, dropout and a single logit output, trained on the unweighted log loss with AdamW (Loshchilov and Hutter, 2019) and stopped early on the log loss of a stratified 15% validation split. Numerical inputs either are standardized and clipped at five standard deviations, or use the piecewise linear encoding of Gorishniy et al. (2022): with quantile edges $b_0 < \dots < b_T$ of attribute $x$, component $t$ is $\min\{1, \max\{0, (x - b_{t-1})/(b_t - b_{t-1})\}\}$. The encoding gives the first layer a step-like basis similar to the splits of a tree and makes the network less sensitive to the heavy tails of income and debt ratio. On tabular data of this size, tree ensembles usually match or beat such networks (Grinsztajn et al., 2022); the network is included as a baseline so that the claim is tested on this data rather than assumed.
 
+**Stacked ensemble.** `StackedEnsemble` combines registry models through their out-of-fold predictions (Wolpert, 1992). With $K$ stratified folds, each base model $m$ is fitted on $K - 1$ folds and predicts the remaining one, so every training row receives a prediction $\tilde p_m(x_i)$ from a model that did not see it. The meta-learner is
+
+$$\operatorname{logit} \hat p(x) = w_0 + \sum_m w_m \operatorname{logit} \hat p_m(x), \qquad w_m \ge 0,$$
+
+fitted on the unweighted log loss of the out-of-fold log-odds by bounded L-BFGS. The non-negativity constraint (Breiman, 1996) keeps the result a weighting of models and prevents offsetting weights on base predictions that are almost collinear. Because the meta-learner is fitted on the unweighted log loss, it also removes the intercept shift of base models trained with balanced class weights. The base models are then refitted on all training rows. When one base model is close to the true log-odds, as on the synthetic data, whose generator is linear in the logit, the stack puts almost all weight on it and the gain is in calibration rather than ranking.
+
 **Tuning.** Search spaces cover regularization strength and penalty type for the logistic model, and learning rate, tree size, minimum leaf size, subsampling and L2 regularization for the ensembles. Optuna's tree-structured Parzen estimator (Akiba et al., 2019) maximizes inner cross-validated AUC.
 
 ## 5. Evaluation
@@ -187,6 +193,7 @@ The benchmark has no dates, so `data/survival.py` simulates monthly histories. T
 - Allison, P. D. (1982). Discrete-time methods for the analysis of event histories. *Sociological Methodology*, 13, 61-98.
 - Banasik, J., Crook, J. N., and Thomas, L. C. (1999). Not if but when will borrowers default. *Journal of the Operational Research Society*, 50(12), 1185-1190.
 - Bellotti, T., and Crook, J. (2009). Credit scoring with macroeconomic variables using survival analysis. *Journal of the Operational Research Society*, 60(12), 1699-1707.
+- Breiman, L. (1996). Stacked regressions. *Machine Learning*, 24(1), 49-64.
 - Brier, G. W. (1950). Verification of forecasts expressed in terms of probability. *Monthly Weather Review*, 78(1), 1-3.
 - Cawley, G. C., and Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. *Journal of Machine Learning Research*, 11, 2079-2107.
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 785-794.
@@ -220,4 +227,5 @@ The benchmark has no dates, so `data/survival.py` simulates monthly histories. T
 - Vovk, V., Gammerman, A., and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.
 - Vovk, V., and Petej, I. (2014). Venn-Abers predictors. *Proceedings of the 30th Conference on Uncertainty in Artificial Intelligence*.
 - Vovk, V., Petej, I., and Fedorova, V. (2015). Large-scale probabilistic predictors with and without guarantees of validity. *Advances in Neural Information Processing Systems*, 28.
+- Wolpert, D. H. (1992). Stacked generalization. *Neural Networks*, 5(2), 241-259.
 - Zadrozny, B., and Elkan, C. (2002). Transforming classifier scores into accurate multiclass probability estimates. *Proceedings of the 8th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 694-699.

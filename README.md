@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with six model families, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
+This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with six model families and a stacked ensemble, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
 
 ## Contents
 
@@ -25,7 +25,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | --- | --- |
 | Data | Schema validation with hard errors and soft warnings, synthetic data generator with the same schema for tests |
 | Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value, dense embeddings of loan-purpose text (LSA or Sentence-BERT) |
-| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models, PyTorch MLP with piecewise linear encoding of numerical inputs, discrete-time hazard model for time to default |
+| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models, PyTorch MLP with piecewise linear encoding of numerical inputs, non-negative stacked ensemble on out-of-fold predictions, discrete-time hazard model for time to default |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
 | Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, stratified bootstrap intervals for every reported metric, out-of-time validation by application month |
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin, Mondrian conformal sets with an approve, decline or refer rule, Venn-Abers PD intervals |
@@ -162,7 +162,7 @@ credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
 credit-risk train --config configs/default.yaml
 credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
 credit-risk compare --models hist_gbm xgboost lightgbm --monotone
-credit-risk compare --models logistic hist_gbm mlp
+credit-risk compare --models logistic hist_gbm mlp stacked
 credit-risk compare --models logistic hist_gbm --n-boot 1000
 credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
@@ -190,6 +190,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 **Model comparison.** All models are fitted on the same stratified split. ROC-AUC differences are tested with the DeLong et al. (1988) method for correlated ROC curves, using the fast midrank algorithm of Sun and Xu (2014). Hyperparameters are tuned with Optuna (Akiba et al., 2019) inside nested cross-validation, so the reported score is not inflated by model selection.
 
 **Neural network baseline.** `models/neural.py` provides a scikit-learn compatible multilayer perceptron in PyTorch (`mlp` in the registry), trained with AdamW and early stopping on validation log loss. Numerical inputs are standardized and clipped, or encoded piecewise linearly on quantile bins (Gorishniy et al., 2022), which gives the network a step-like view of each attribute similar to tree splits. Tree ensembles usually match or beat such networks on tabular data of this size (Grinsztajn et al., 2022); the MLP is there to test that on this data. Weights are stored as arrays, so a fitted network saves and loads with the same `joblib` bundle as the other models.
+
+**Stacking.** `models/stacking.py` combines registry models (`stacked` in the registry, by default logistic, scorecard and histogram boosting). Each base model predicts every training row from a fit on the other folds, and a logistic meta-learner with non-negative weights on the base log-odds combines these out-of-fold predictions (Wolpert, 1992; Breiman, 1996). The meta-learner is fitted on the unweighted log loss, so it also recalibrates base models trained with balanced class weights. The fitted stack reports its weights and the out-of-fold AUC of every base model.
 
 **Monotonic constraints.** The boosting models can be fitted with expected directions per input: PD non-decreasing in utilization, debt ratio and delinquency severity, non-increasing in age and income, and free for the others. The constraint is checked after fitting as the share of ICE curves that move in the wrong direction, which must be zero. This prevents reason codes that contradict credit judgment.
 
@@ -265,6 +267,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Akiba, T., Sano, S., Yanase, T., Ohta, T., and Koyama, M. (2019). Optuna: A next-generation hyperparameter optimization framework. *KDD*.
 - Allison, P. D. (1982). Discrete-time methods for the analysis of event histories. *Sociological Methodology*, 13, 61-98.
 - Banasik, J., Crook, J. N., and Thomas, L. C. (1999). Not if but when will borrowers default. *Journal of the Operational Research Society*, 50(12), 1185-1190.
+- Breiman, L. (1996). Stacked regressions. *Machine Learning*, 24(1), 49-64.
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *KDD*.
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
@@ -287,6 +290,7 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Sun, X., and Xu, W. (2014). Fast implementation of DeLong's algorithm for comparing the areas under correlated receiver operating characteristic curves. *IEEE Signal Processing Letters*, 21(11), 1389-1393.
 - Vovk, V., Gammerman, A., and Shafer, G. (2005). *Algorithmic Learning in a Random World*. Springer.
 - Vovk, V., and Petej, I. (2014). Venn-Abers predictors. *Proceedings of the 30th Conference on Uncertainty in Artificial Intelligence*.
+- Wolpert, D. H. (1992). Stacked generalization. *Neural Networks*, 5(2), 241-259.
 
 ## License
 

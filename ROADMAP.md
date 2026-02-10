@@ -54,7 +54,6 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 9: Advanced modeling
 
-- [ ] 9.1 Discrete-time survival model for time to default
 - [ ] 9.2 Tabular neural network baseline in PyTorch as an optional extra
 - [ ] 9.3 Stacked ensemble with out-of-fold predictions
 
@@ -121,3 +120,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-09: 8.4 Conformal prediction and Venn-Abers intervals for PD
 - [x] 2026-02-09: 8.5 Prior-shift recalibration of PD to a target portfolio default rate
 - [x] 2026-02-09: 8.6 Reject inference on a synthetic through-the-door population
+- [x] 2026-02-10: 9.1 Discrete-time survival model for time to default

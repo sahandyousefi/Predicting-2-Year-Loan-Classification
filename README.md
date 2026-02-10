@@ -25,7 +25,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | --- | --- |
 | Data | Schema validation with hard errors and soft warnings, synthetic data generator with the same schema for tests |
 | Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value, dense embeddings of loan-purpose text (LSA or Sentence-BERT) |
-| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models |
+| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models, discrete-time hazard model for time to default |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
 | Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, stratified bootstrap intervals for every reported metric, out-of-time validation by application month |
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin, Mondrian conformal sets with an approve, decline or refer rule, Venn-Abers PD intervals |
@@ -82,6 +82,20 @@ Reproduce with `credit-risk text-ablation --n 5000 --dims 16 --seed 0`.
 
 When selection depends only on observed attributes, the approved-only model is close to the oracle and no method improves it. When the old policy used information not in the data, the approved-only model understates the PD of rejects by half, and reweighting and fuzzy augmentation cannot correct it because they use the same attributes. Parceling corrects the level only because its factor happens to fit this generator; the same factor overstates reject risk by about 60% in the MAR case. Ranking changes little in either setting. Reproduce with `credit-risk reject-inference --hidden-signal 0 --inflation 2` and `--hidden-signal 0.25`.
 
+### Time to default (synthetic data)
+
+20,000 simulated accounts observed monthly for up to 36 months, with a true 24-month PD of 15% and a 3% monthly chance of leaving observation without default (prepayment or closure). Models are fitted on 70% of accounts and compared on the rest with the true cumulative PD of the simulator. Concordance is Harrell's C on the observed default times.
+
+| Model | Horizon (months) | Training accounts | Mean PD | True mean PD | MAE vs true PD | C-index |
+| --- | --- | --- | --- | --- | --- | --- |
+| Discrete-time hazard | 12 | 14,000 | 0.094 | 0.095 | 0.005 | 0.804 |
+| Discrete-time hazard | 24 | 14,000 | 0.152 | 0.152 | 0.008 | 0.804 |
+| Discrete-time hazard | 36 | 14,000 | 0.171 | 0.175 | 0.010 | 0.804 |
+| Binary, drop censored | 24 | 7,441 | 0.194 | 0.152 | 0.043 | 0.805 |
+| Binary, censored as good | 24 | 14,000 | 0.114 | 0.152 | 0.038 | 0.804 |
+
+Ranking is the same for all three, but the binary models are biased in level: dropping accounts censored before month 24 keeps every early default and loses survivors, which overstates PD by about 28%, and counting them as good understates it by about 25%. The hazard model uses each account for the months it was observed and gives 12-month and lifetime PDs from one fit. Reproduce with `credit-risk survival --n 20000 --censor-rate 0.03`.
+
 ## Architecture
 
 ```mermaid
@@ -115,10 +129,11 @@ flowchart LR
 ├── src/credit_risk/
 │   ├── cli.py                      credit-risk command
 │   ├── config.py                   typed YAML configuration
-│   ├── data/                       schema, loader, synthetic generators, vintages
+│   ├── data/                       schema, loader, synthetic generators, vintages,
+│   │                               performance histories
 │   ├── features/                   engineered features, WoE binning
 │   ├── models/                     pipelines, scorecard, registry, tuning, conformal,
-│   │                               prior shift, reject inference, persistence
+│   │                               prior shift, reject inference, survival, persistence
 │   ├── evaluation/                 credit metrics, calibration, DeLong, thresholds, comparison
 │   ├── explain/                    SHAP, reason codes, PDP/ICE, fairness
 │   ├── monitoring/                 drift, experiment tracking
@@ -153,6 +168,7 @@ credit-risk challenge holdout.csv --champion prod.joblib --challenger new.joblib
 credit-risk text-ablation --signals 0 0.5 1 --dims 8 16
 credit-risk oot data.csv --cutoff 2020-07 --shift 1.0
 credit-risk conformal holdout.csv --model artifacts/model.joblib --alpha 0.05 0.1
+credit-risk survival --n 20000 --horizons 12 24 36
 ```
 
 `credit-risk synthesize data/synthetic.csv` writes a synthetic sample, which is enough to run every command without the real data.
@@ -181,7 +197,9 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 
 **Reject inference.** Outcomes exist only for approved applicants. `models/reject_inference.py` implements the approved-only baseline, inverse-probability reweighting with a fitted approval model, fuzzy augmentation, hard cut-off augmentation and parceling with an inflation factor, and `data/through_the_door.py` generates a population in which the outcomes of rejects are known, so each method can be scored against the truth. Every method depends on an assumption about the rejects that the data cannot test (Hand and Henley, 1993).
 
-**Uncertainty.** On a calibration sample not used in training, label-conditional (Mondrian) conformal prediction gives each applicant a set of outcomes that cannot be excluded at level $\alpha$, with coverage of at least $1-\alpha$ within each class (Vovk et al., 2005). Applicants with the set $\{0\}$ are approved, $\{1\}$ declined, and the rest referred to an underwriter. Inductive Venn-Abers prediction (Vovk and Petej, 2014) returns an interval $[p_0, p_1]$ for the PD and a merged estimate $p_1/(1-p_0+p_1)$; the interval widens where calibration data are sparse.
+**Conformal sets and PD intervals.** On a calibration sample not used in training, label-conditional (Mondrian) conformal prediction gives each applicant a set of outcomes that cannot be excluded at level $\alpha$, with coverage of at least $1-\alpha$ within each class (Vovk et al., 2005). Applicants with the set $\{0\}$ are approved, $\{1\}$ declined, and the rest referred to an underwriter. Inductive Venn-Abers prediction (Vovk and Petej, 2014) returns an interval $[p_0, p_1]$ for the PD and a merged estimate $p_1/(1-p_0+p_1)$; the interval widens where calibration data are sparse.
+
+**Time to default.** The binary target hides when a default occurs and discards accounts that leave observation early. `models/survival.py` fits a discrete-time hazard model: each account contributes one row per month observed, and a logistic regression on those rows estimates $h(t \mid x) = \Pr(T = t \mid T \ge t, x) = \operatorname{expit}(\alpha_{k(t)} + x^\top\beta)$ with a piecewise-constant baseline. This likelihood is the discrete-time survival likelihood with right censoring (Allison, 1982). The cumulative PD at any horizon is $1 - \prod_{s \le t}\{1 - h(s \mid x)\}$, so one model gives the 12-month PD and the lifetime PD that IFRS 9 stage 2 and CECL require. Since the benchmark has no default dates, `data/survival.py` simulates monthly histories from a known hazard with independent censoring, and the fitted model is checked against the true PD of each account, against Kaplan-Meier, and with Harrell's C.
 
 **Explainability.** Linear models are explained in closed form, $\phi_j = \beta_j (x_j - \mathbb{E}[x_j])$, and tree ensembles with TreeSHAP (Lundberg and Lee, 2017). In both cases the attributions add up to the model's log-odds. Attributions of engineered features are summed back to the borrower attribute they come from, and the largest positive groups become up to four reason codes, as Regulation B requires for adverse action notices.
 
@@ -234,17 +252,22 @@ Tests run on synthetic data only and cover validation, features, every model fam
 - The credit policy used for retrieval is illustrative and was written for this project.
 - Reject inference is studied on synthetic applicants only. The benchmark contains no rejected applicants, and on real data the choice of method and parceling factor cannot be validated without outcomes for some rejects.
 - The loan-purpose text is synthetic. Any gain from text features measures the generator, not real applicants.
+- The benchmark has no default or closure dates. The survival model is validated on simulated histories with independent censoring; on real data, censoring by prepayment can depend on credit quality and would need a competing-risks treatment.
 
 See [docs/methodology.md](docs/methodology.md) for the full statistical design, [docs/llm_design.md](docs/llm_design.md) for the LLM layer, [docs/model_card.md](docs/model_card.md) for the model card and [ROADMAP.md](ROADMAP.md) for planned work.
 
 ## References
 
 - Akiba, T., Sano, S., Yanase, T., Ohta, T., and Koyama, M. (2019). Optuna: A next-generation hyperparameter optimization framework. *KDD*.
+- Allison, P. D. (1982). Discrete-time methods for the analysis of event histories. *Sociological Methodology*, 13, 61-98.
+- Banasik, J., Crook, J. N., and Thomas, L. C. (1999). Not if but when will borrowers default. *Journal of the Operational Research Society*, 50(12), 1185-1190.
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *KDD*.
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
 - Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
 - Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
+- Harrell, F. E., Califf, R. M., Pryor, D. B., Lee, K. L., and Rosati, R. A. (1982). Evaluating the yield of medical tests. *JAMA*, 247(18), 2543-2546.
+- Kaplan, E. L., and Meier, P. (1958). Nonparametric estimation from incomplete observations. *Journal of the American Statistical Association*, 53(282), 457-481.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *NeurIPS*.
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.

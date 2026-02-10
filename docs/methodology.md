@@ -159,9 +159,32 @@ Let $A \in \{0, 1\}$ indicate approval by the historical policy, so that $y$ is 
 
 The first four use only $x$ and the observed outcomes, so if the old policy used information $h$ that is absent from the data and related to $y$ (missing not at random), none of them can remove the bias; parceling removes it only to the extent that $k$ is chosen correctly, and $k$ cannot be estimated without outcomes for rejects (Hand and Henley, 1993; Crook and Banasik, 2004). The synthetic through-the-door generator makes the mechanism explicit. The old policy ranks applicants by a linear score of delinquency, utilization and income plus $0.7\,h$, with $h = \eta(2y - 1) + \varepsilon$, and approves a fixed share; $\eta = 0$ gives missing at random and $\eta > 0$ missing not at random. Since the outcomes of rejects are kept for evaluation, each method is scored against the truth on a holdout of all applicants. The study supports the usual practical conclusion: reject inference is a sensitivity analysis, and the reliable remedies are outcome data on rejects, from a bureau or from a small randomized approval test below the cut-off.
 
+## 12. Time to default
+
+Let $T \in \{1, 2, \dots\}$ be the month of default and $C$ the month an account leaves observation for another reason (prepayment, closure or the end of the data). We observe $D = \min(T, C)$ and $\delta = \mathbb{1}\{T \le C\}$. The discrete-time hazard is $h(t \mid x) = \Pr(T = t \mid T \ge t, x)$ and the survival function $S(t \mid x) = \prod_{s \le t}\{1 - h(s \mid x)\}$. With non-informative censoring the likelihood of account $i$ is
+
+$$
+L_i = h(D_i \mid x_i)^{\delta_i}\{1 - h(D_i \mid x_i)\}^{1 - \delta_i} \prod_{s < D_i}\{1 - h(s \mid x_i)\},
+$$
+
+which is the likelihood of independent Bernoulli outcomes on the expanded person-period rows $(i, s)$, $s = 1, \dots, D_i$, with outcome 1 only in month $D_i$ when $\delta_i = 1$ (Allison, 1982). The model is therefore an ordinary logistic regression on those rows:
+
+$$
+\operatorname{logit} h(t \mid x) = \alpha_{k(t)} + x^\top \beta,
+$$
+
+where $k(t)$ maps month $t$ to one of the intervals $(0, 3], (3, 6], \dots, (24, 36]$. The interval effects are coded as contrasts against the first interval, so the L2 penalty on $\beta$ leaves the baseline almost unpenalized. The cumulative PD at horizon $H$ is $1 - S(H \mid x)$; a 12-month PD and a lifetime PD come from the same fit, which is what IFRS 9 staging and CECL need (Banasik et al., 1999; Bellotti and Crook, 2009).
+
+Two binary shortcuts are common when the target is "default within 24 months". Dropping accounts censored before month 24 keeps every early default but only the survivors who stayed, so the PD is biased upwards. Counting them as non-defaults biases it downwards. The bias grows with the censoring rate and does not affect ranking much, which is why it is easy to miss if only AUC is reported.
+
+The benchmark has no dates, so `data/survival.py` simulates monthly histories. The true hazard is $\operatorname{expit}\{\alpha + \log b(t) + \eta(x)\}$, with a hump-shaped baseline $b(t) = (t/t_p)\exp(1 - t/t_p)$ peaking at $t_p = 9$ months, a linear risk index $\eta$ of standardized attributes, and $\alpha$ solved so that the mean 24-month PD hits a target. Censoring is geometric with a constant monthly rate and administrative at 36 months. The fitted model is compared with the true cumulative PD of each account, the Kaplan-Meier estimator (Kaplan and Meier, 1958), and with Harrell's concordance index (Harrell et al., 1982), the share of comparable pairs in which the account that defaulted earlier has the higher predicted risk. The simulation assumes censoring is independent of risk. In real portfolios prepayment is more frequent among better borrowers, and a competing-risks model with separate hazards for default and prepayment would be required.
+
 ## References
 
 - Akiba, T., Sano, S., Yanase, T., Ohta, T., and Koyama, M. (2019). Optuna: A next-generation hyperparameter optimization framework. *Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 2623-2631.
+- Allison, P. D. (1982). Discrete-time methods for the analysis of event histories. *Sociological Methodology*, 13, 61-98.
+- Banasik, J., Crook, J. N., and Thomas, L. C. (1999). Not if but when will borrowers default. *Journal of the Operational Research Society*, 50(12), 1185-1190.
+- Bellotti, T., and Crook, J. (2009). Credit scoring with macroeconomic variables using survival analysis. *Journal of the Operational Research Society*, 60(12), 1699-1707.
 - Brier, G. W. (1950). Verification of forecasts expressed in terms of probability. *Monthly Weather Review*, 78(1), 1-3.
 - Cawley, G. C., and Talbot, N. L. C. (2010). On over-fitting in model selection and subsequent selection bias in performance evaluation. *Journal of Machine Learning Research*, 11, 2079-2107.
 - Chen, T., and Guestrin, C. (2016). XGBoost: A scalable tree boosting system. *Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 785-794.
@@ -173,7 +196,9 @@ The first four use only $x$ and the observed outcomes, so if the old policy used
 - Goldstein, A., Kapelner, A., Bleich, J., and Pitkin, E. (2015). Peeking inside the black box: Visualizing statistical learning with plots of individual conditional expectation. *Journal of Computational and Graphical Statistics*, 24(1), 44-65.
 - Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
 - Hardt, M., Price, E., and Srebro, N. (2016). Equality of opportunity in supervised learning. *Advances in Neural Information Processing Systems*, 29.
+- Harrell, F. E., Califf, R. M., Pryor, D. B., Lee, K. L., and Rosati, R. A. (1982). Evaluating the yield of medical tests. *JAMA*, 247(18), 2543-2546.
 - Hosmer, D. W., and Lemeshow, S. (1980). Goodness of fit tests for the multiple logistic regression model. *Communications in Statistics: Theory and Methods*, 9(10), 1043-1069.
+- Kaplan, E. L., and Meier, P. (1958). Nonparametric estimation from incomplete observations. *Journal of the American Statistical Association*, 53(282), 457-481.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, 30.
 - Lundberg, S. M., Erion, G., Chen, H., DeGrave, A., Prutkin, J. M., Nair, B., Katz, R., Himmelfarb, J., Bansal, N., and Lee, S.-I. (2020). From local explanations to global understanding with explainable AI for trees. *Nature Machine Intelligence*, 2(1), 56-67.

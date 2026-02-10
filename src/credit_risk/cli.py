@@ -259,6 +259,26 @@ def _reject_inference(args: argparse.Namespace) -> int:
     return 0
 
 
+def _survival(args: argparse.Namespace) -> int:
+    from credit_risk.data.survival import SurvivalSpec, simulate_survival
+    from credit_risk.evaluation.compare import to_markdown
+    from credit_risk.models.survival import survival_study
+
+    sample = simulate_survival(
+        SurvivalSpec(
+            n=args.n, pd_24=args.pd_24, censor_rate=args.censor_rate, seed=args.seed
+        )
+    )
+    true_pd = {h: sample.true_cumulative_pd(h) for h in args.horizons}
+    table = survival_study(
+        sample.frame, true_pd, horizon=24 if 24 in true_pd else args.horizons[0]
+    ).round(4)
+    if args.output:
+        table.to_csv(args.output, index=False)
+    print(to_markdown(table))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="credit-risk")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -366,6 +386,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output", default=None)
     p.set_defaults(func=_reject_inference)
+
+    p = sub.add_parser(
+        "survival", help="time-to-default model on synthetic performance data"
+    )
+    p.add_argument("--n", type=int, default=20000)
+    p.add_argument("--pd-24", type=float, default=0.15)
+    p.add_argument(
+        "--censor-rate",
+        type=float,
+        default=0.03,
+        help="monthly probability of leaving observation without default",
+    )
+    p.add_argument("--horizons", type=int, nargs="+", default=[12, 24, 36])
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--output", default=None)
+    p.set_defaults(func=_survival)
 
     p = sub.add_parser("validate", help="check a CSV against the schema")
     p.add_argument("data")

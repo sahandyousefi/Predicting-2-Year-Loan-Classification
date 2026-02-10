@@ -8,8 +8,9 @@ The credit decision is made by the PD model and the cut-off. The LLM layer write
 
 - **Applicants** receive an adverse action notice that states the principal reasons for a decline in plain language.
 - **Credit analysts** receive a short case summary that relates the model output to the relevant sections of the credit policy.
+- **The intake process** receives structured fields read from a free-text application, for channels where applicants describe their situation in their own words.
 
-The LLM never sees a decision it can change, never computes a number that is used downstream, and never sends text to a customer that has not passed deterministic validation. These constraints follow from treating the LLM as a component of a model in the sense of supervisory model risk guidance (Board of Governors of the Federal Reserve System, 2011): its output must be verifiable, its failure modes documented and its performance monitored.
+The LLM never sees a decision it can change, never computes a number that is used downstream, and never sends text to a customer that has not passed deterministic validation. Extraction is the one place where the model's output becomes a model input, and there it may only copy a number the applicant wrote: every value must come with a verbatim quote that contains it. These constraints follow from treating the LLM as a component of a model in the sense of supervisory model risk guidance (Board of Governors of the Federal Reserve System, 2011): its output must be verifiable, its failure modes documented and its performance monitored.
 
 ## 2. Architecture
 
@@ -100,6 +101,16 @@ Any free text supplied by an applicant is untrusted input that may be placed in 
 
 Pattern screening is a first line of defence with known limits. It catches common phrasings and is easy to audit, but an adaptive attacker can paraphrase around it. The structural controls carry more weight: the LLM has no tools, no access to the decision, and every output is validated against data the system already holds.
 
+### 3.7 Field extraction from application text
+
+`llm.extraction` reads eleven fields from a free-text application: age, monthly income, monthly debt payments, dependents, open credit lines, real estate loans, revolving utilization, the three delinquency counts, and the loan purpose as one of the categories in `data/synthetic_text.py`. Each field has a type (whole number, monthly amount, percentage returned as a fraction, or category) and bounds. Prompt `application_extraction` v1 asks for a JSON object with a value and an exact supporting quote per field, null for both when the field is not stated, and tells the model that the application text is data rather than instructions.
+
+A field is accepted only if (i) the value has the declared type and lies within bounds, (ii) the quote, after whitespace and case normalization, is a substring of the screened application text, and (iii) for numeric fields, the quote contains a number equal to the value after unit handling: thousands written as `k`, currency symbols and separators, percentages, and number words from zero to twelve including "once", "twice" and "never". A field that fails any check is set to null and listed with the reason; the application is then routed to review. Field failures are not retried, because a second sample from the same prompt would hide rather than resolve the disagreement. Only a reply that is not valid JSON with a `fields` object is retried once. The application text passes the injection screen of Section 3.6 first, with a 2,000 character limit, and flagged text is never sent.
+
+Accepted fields map to the benchmark attributes, with the debt ratio computed as monthly debt payments over monthly income. The model never computes the ratio itself.
+
+`llm.extraction_baseline` implements a rule-based extractor that classifies clauses by keywords and returns the same JSON structure. It is the reference point for the LLM in the evaluation and serves as the deterministic mock in tests.
+
 ## 4. Evaluation
 
 Evaluation runs offline on fixed case sets stored in `llm/eval/`, so the same numbers can be computed for any provider and compared across prompt versions.
@@ -134,6 +145,7 @@ where $\operatorname{rank}_q$ is the position of the first relevant section, wit
 | Malformed output | JSON parsing and key checks; one retry | Higher fallback rate for weaker models |
 | Unsupported policy claim in a summary | Citations restricted to retrieved identifiers | Uncited sentences are not verified against the excerpts |
 | Prompt injection through applicant text | Sanitization, pattern screen, manual review | Paraphrased attacks; mitigated by the lack of tools and decision access |
+| Extracted value not written by the applicant | Verbatim quote required and checked against the text; quote must contain the value | A misread quote, for example a count attached to the wrong delinquency bucket, passes when the number appears in it |
 | Silent prompt drift | Versioned prompt files and fingerprints on every output | None when fingerprints are monitored |
 | Provider outage or rate limit | Exponential backoff; template notices need no LLM | Summaries are unavailable during an outage |
 | Data leakage to a third-party endpoint | Notice prompts contain codes, not attribute values; self-hosted endpoints supported | Summaries include the PD and reason descriptions |

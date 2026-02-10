@@ -57,7 +57,7 @@ This file tracks the development plan for the credit risk project. The notebook 
 
 ## Phase 10: LLM applications II
 
-- [ ] 10.1 LLM extraction of structured fields from free-text applications with schema validation
+- [ ] 10.1b Synthetic application texts and field-level extraction evaluation
 - [ ] 10.2 Consistency checks between extracted fields and bureau attributes
 - [ ] 10.3 Prompt version comparison report on the evaluation sets
 
@@ -121,3 +121,4 @@ This file tracks the development plan for the credit risk project. The notebook 
 - [x] 2026-02-10: 9.1 Discrete-time survival model for time to default
 - [x] 2026-02-10: 9.2 Tabular neural network baseline in PyTorch as an optional extra
 - [x] 2026-02-10: 9.3 Stacked ensemble with out-of-fold predictions
+- [x] 2026-02-10: 10.1a Extraction schema, quote-grounded validation and rule-based baseline

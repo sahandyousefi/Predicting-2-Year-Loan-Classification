@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with six model families and a stacked ensemble, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
+This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with six model families and a stacked ensemble, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries and reads structured fields from free-text applications, all under strict grounding checks.
 
 ## Contents
 
@@ -33,7 +33,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | Fairness | Approval rates, disparate impact and equal opportunity difference by age band |
 | Monitoring | PSI and characteristic stability, champion-challenger tests with swap-set analysis, run fingerprints, MLflow tracking with a JSON fallback |
 | Serving | Batch scoring CLI, FastAPI service with request validation, Dockerfile |
-| LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, evaluation harness, prompt injection screening |
+| LLM | Provider-agnostic client, versioned prompts, grounded adverse action notices, retrieval over credit policy, structured field extraction with quote-level grounding, evaluation harness, prompt injection screening |
 
 ## Results
 
@@ -132,13 +132,15 @@ flowchart LR
 │   ├── data/                       schema, loader, synthetic generators, vintages,
 │   │                               performance histories
 │   ├── features/                   engineered features, WoE binning
-│   ├── models/                     pipelines, scorecard, registry, tuning, conformal,
-│   │                               prior shift, reject inference, survival, persistence
+│   ├── models/                     pipelines, scorecard, MLP, stacking, registry, tuning,
+│   │                               conformal, prior shift, reject inference, survival,
+│   │                               persistence
 │   ├── evaluation/                 credit metrics, calibration, DeLong, thresholds, comparison
 │   ├── explain/                    SHAP, reason codes, PDP/ICE, fairness
 │   ├── monitoring/                 drift, experiment tracking
 │   ├── serving/                    batch scoring, FastAPI service
-│   └── llm/                        client, prompts, notices, retrieval, guardrails, evaluation
+│   └── llm/                        client, prompts, notices, retrieval, extraction, guardrails,
+│                                   evaluation
 ├── tests/                          unit and integration tests on synthetic data
 ├── Dockerfile
 ├── Makefile
@@ -225,6 +227,7 @@ The LLM layer never makes or changes a credit decision. It writes text around a 
 - **Prompts.** Stored as versioned YAML files. Each generation records the template fingerprint.
 - **Adverse action notices.** The prompt lists only the model's reason codes. The reply must be valid JSON, cite exactly those codes in the same order, and avoid every prohibited basis under ECOA. If it fails after a retry, a deterministic template notice is used instead.
 - **Analyst summaries.** Retrieval-augmented generation (Lewis et al., 2020) over a small credit policy written for this project. Policy sections are retrieved with a character n-gram TF-IDF retriever, or a Sentence-BERT retriever (Reimers and Gurevych, 2019) when the `embed` extra is installed. Any citation of a section that was not shown to the model is flagged.
+- **Field extraction.** Free-text applications are turned into the model's input attributes. For every field the model must return the value and a verbatim quote from the application; a value is accepted only if the quote occurs in the text, contains that number after unit handling (`5.5k`, `$4,200`, `62%`, `twice`), and the value has the declared type and bounds. Rejected fields are set to null and the application goes to review, so no number reaches the credit model unless the applicant wrote it. A rule-based extractor with the same output format is the baseline and the offline mock.
 - **Evaluation.** A fixed set of reason code combinations measures format compliance, grounding, hallucination and fallback rates for any provider. Retrieval is measured with recall@k and MRR on labeled queries; the TF-IDF retriever reaches recall@3 of 0.9 and MRR of 0.87 on the current set.
 - **Guardrails.** Applicant free text is normalized, stripped of control characters and screened for instruction overrides, role changes, prompt extraction and delimiter attacks. Flagged text goes to manual review. The attack and benign examples in `llm/eval/injection_cases.yaml` serve as a regression set; they are not a measure of robustness against adaptive attacks.
 

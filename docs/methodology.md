@@ -64,6 +64,8 @@ The defaults are $S_0 = 600$, $O_0 = 50$ and $\mathrm{pdo} = 20$. Each bin recei
 
 **Monotonic constraints.** For an input $x_j$ with expected direction $c_j \in \{-1, 0, +1\}$ the ensembles can be restricted so that $c_j\,\big(\hat p(x) - \hat p(x')\big) \ge 0$ whenever $x$ and $x'$ differ only in $x_j$ and $x_j > x_j'$. All three libraries enforce this during tree growth by rejecting splits whose child values violate the order and by bounding leaf values. The directions are set by credit judgment: PD is non-decreasing in utilization, debt ratio and delinquency severity, and non-increasing in age and income; the number of open lines, dependents and credit-to-income are left free because their effect is not one-signed. The constraints are verified after fitting by the share of ICE curves, on a quantile grid of each constrained input, that move against $c_j$. A constrained model cannot produce a reason code that contradicts the stated direction, which simplifies review and adverse action explanations at a usually small cost in AUC that the comparison report measures.
 
+**Neural network baseline.** `TabularMLP` is a feed-forward network in PyTorch with ReLU layers, dropout and a single logit output, trained on the unweighted log loss with AdamW (Loshchilov and Hutter, 2019) and stopped early on the log loss of a stratified 15% validation split. Numerical inputs either are standardized and clipped at five standard deviations, or use the piecewise linear encoding of Gorishniy et al. (2022): with quantile edges $b_0 < \dots < b_T$ of attribute $x$, component $t$ is $\min\{1, \max\{0, (x - b_{t-1})/(b_t - b_{t-1})\}\}$. The encoding gives the first layer a step-like basis similar to the splits of a tree and makes the network less sensitive to the heavy tails of income and debt ratio. On tabular data of this size, tree ensembles usually match or beat such networks (Grinsztajn et al., 2022); the network is included as a baseline so that the claim is tested on this data rather than assumed.
+
 **Tuning.** Search spaces cover regularization strength and penalty type for the logistic model, and learning rate, tree size, minimum leaf size, subsampling and L2 regularization for the ensembles. Optuna's tree-structured Parzen estimator (Akiba et al., 2019) maximizes inner cross-validated AUC.
 
 ## 5. Evaluation
@@ -194,12 +196,15 @@ The benchmark has no dates, so `data/survival.py` simulates monthly histories. T
 - Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
 - Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. *Annals of Statistics*, 29(5), 1189-1232.
 - Goldstein, A., Kapelner, A., Bleich, J., and Pitkin, E. (2015). Peeking inside the black box: Visualizing statistical learning with plots of individual conditional expectation. *Journal of Computational and Graphical Statistics*, 24(1), 44-65.
+- Gorishniy, Y., Rubachev, I., and Babenko, A. (2022). On embeddings for numerical features in tabular deep learning. *Advances in Neural Information Processing Systems*, 35.
+- Grinsztajn, L., Oyallon, E., and Varoquaux, G. (2022). Why do tree-based models still outperform deep learning on typical tabular data? *Advances in Neural Information Processing Systems*, 35.
 - Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
 - Hardt, M., Price, E., and Srebro, N. (2016). Equality of opportunity in supervised learning. *Advances in Neural Information Processing Systems*, 29.
 - Harrell, F. E., Califf, R. M., Pryor, D. B., Lee, K. L., and Rosati, R. A. (1982). Evaluating the yield of medical tests. *JAMA*, 247(18), 2543-2546.
 - Hosmer, D. W., and Lemeshow, S. (1980). Goodness of fit tests for the multiple logistic regression model. *Communications in Statistics: Theory and Methods*, 9(10), 1043-1069.
 - Kaplan, E. L., and Meier, P. (1958). Nonparametric estimation from incomplete observations. *Journal of the American Statistical Association*, 53(282), 457-481.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *Advances in Neural Information Processing Systems*, 30.
+- Loshchilov, I., and Hutter, F. (2019). Decoupled weight decay regularization. *International Conference on Learning Representations*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *Advances in Neural Information Processing Systems*, 30.
 - Lundberg, S. M., Erion, G., Chen, H., DeGrave, A., Prutkin, J. M., Nair, B., Katz, R., Himmelfarb, J., Bansal, N., and Lee, S.-I. (2020). From local explanations to global understanding with explainable AI for trees. *Nature Machine Intelligence*, 2(1), 56-67.
 - Nadeau, C., and Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*, 52(3), 239-281.

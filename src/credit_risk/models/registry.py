@@ -61,13 +61,22 @@ def _lightgbm(**params: Any):
     return LGBMClassifier(random_state=SEED, **{**defaults, **params})
 
 
+def _mlp(**params: Any):
+    from credit_risk.models.neural import TabularMLP
+
+    return TabularMLP(random_state=SEED, **params)
+
+
 _BUILDERS: dict[str, tuple[Callable[..., Any], str | None]] = {
     "logistic": (_logistic, None),
     "scorecard": (_scorecard, None),
     "hist_gbm": (_hist_gbm, None),
     "xgboost": (_xgboost, "xgboost"),
     "lightgbm": (_lightgbm, "lightgbm"),
+    "mlp": (_mlp, "torch"),
 }
+
+_EXTRAS = {"xgboost": "gbm", "lightgbm": "gbm", "torch": "nn"}
 
 
 def available_models() -> list[str]:
@@ -83,8 +92,8 @@ def build_model(
 ):
     """Return an unfitted estimator by name.
 
-    XGBoost and LightGBM are optional: install them with ``pip install -e
-    ".[gbm]"``.
+    XGBoost and LightGBM need the ``gbm`` extra and the PyTorch MLP the ``nn``
+    extra, for example ``pip install -e ".[gbm,nn]"``.
 
     Parameters
     ----------
@@ -101,7 +110,10 @@ def build_model(
         raise KeyError(f"unknown model '{name}', choose from {sorted(_BUILDERS)}")
     builder, module = _BUILDERS[name]
     if module and importlib.util.find_spec(module) is None:
-        raise ImportError(f"'{name}' needs the {module} package: pip install -e .[gbm]")
+        extra = _EXTRAS[module]
+        raise ImportError(
+            f"'{name}' needs the {module} package: pip install -e .[{extra}]"
+        )
     if monotone_columns is not None:
         params = {**model_kwargs(name, constraint_vector(monotone_columns)), **params}
     return builder(**params)

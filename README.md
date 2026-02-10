@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with five model families, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
+This project estimates the probability that a borrower becomes 90 or more days past due within two years, and turns that estimate into a lending decision that can be explained, monitored and communicated. It started as an exploratory notebook on the Credit Risk Benchmark Dataset and is now a tested Python package with six model families, calibration and cost-based cut-offs, attribution-based reason codes, fairness and drift checks, a scoring API, and an LLM layer that drafts adverse action notices and analyst summaries under strict grounding checks.
 
 ## Contents
 
@@ -25,7 +25,7 @@ This project estimates the probability that a borrower becomes 90 or more days p
 | --- | --- |
 | Data | Schema validation with hard errors and soft warnings, synthetic data generator with the same schema for tests |
 | Features | Ratio features, a weighted delinquency severity score, log transforms, Weight of Evidence binning with Information Value, dense embeddings of loan-purpose text (LSA or Sentence-BERT) |
-| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models, discrete-time hazard model for time to default |
+| Models | L1 logistic regression, WoE scorecard with points scaling, histogram gradient boosting, XGBoost, LightGBM, optional monotonic constraints on the boosting models, PyTorch MLP with piecewise linear encoding of numerical inputs, discrete-time hazard model for time to default |
 | Tuning | Optuna (TPE) with nested cross-validation to separate selection from evaluation |
 | Evaluation | ROC-AUC, Gini, KS, PR-AUC, lift and gain tables, DeLong test, Brier score, ECE, Hosmer-Lemeshow, stratified bootstrap intervals for every reported metric, out-of-time validation by application month |
 | Decisions | Profit-maximizing cut-off from PD, LGD, EAD and margin, Mondrian conformal sets with an approve, decline or refer rule, Venn-Abers PD intervals |
@@ -152,6 +152,7 @@ git clone https://github.com/sahandyousefi/Predicting-2-Year-Loan-Classification
 cd Predicting-2-Year-Loan-Classification
 pip install -e ".[dev]"            # core package and test tools
 pip install -e ".[gbm,tune,explain,serve]"   # optional model, tuning, SHAP and API extras
+pip install -e ".[nn]"             # PyTorch for the MLP baseline
 ```
 
 Download the dataset as described in `data/README.md`, then:
@@ -161,6 +162,7 @@ credit-risk validate "data/Credit Risk Benchmark Dataset.csv"
 credit-risk train --config configs/default.yaml
 credit-risk compare --models logistic scorecard hist_gbm xgboost lightgbm
 credit-risk compare --models hist_gbm xgboost lightgbm --monotone
+credit-risk compare --models logistic hist_gbm mlp
 credit-risk compare --models logistic hist_gbm --n-boot 1000
 credit-risk score applicants.csv scored.csv --model artifacts/model.joblib
 credit-risk drift reference.csv current.csv --fail-on-drift
@@ -186,6 +188,8 @@ This section summarizes the approach; [docs/methodology.md](docs/methodology.md)
 **Scorecard.** Each attribute is binned on quantiles, adjacent bins are merged until the default rate is monotonic, and bins are encoded by Weight of Evidence $\mathrm{WoE}_i = \ln(g_i/G) - \ln(b_i/B)$. Information Value $\sum_i (g_i/G - b_i/B)\,\mathrm{WoE}_i$ ranks attributes. A logistic model on WoE values is scaled to points with $\text{score} = \text{offset} + \text{factor}\cdot\ln(\text{odds}_{good})$, $\text{factor} = \text{pdo}/\ln 2$ (Siddiqi, 2006).
 
 **Model comparison.** All models are fitted on the same stratified split. ROC-AUC differences are tested with the DeLong et al. (1988) method for correlated ROC curves, using the fast midrank algorithm of Sun and Xu (2014). Hyperparameters are tuned with Optuna (Akiba et al., 2019) inside nested cross-validation, so the reported score is not inflated by model selection.
+
+**Neural network baseline.** `models/neural.py` provides a scikit-learn compatible multilayer perceptron in PyTorch (`mlp` in the registry), trained with AdamW and early stopping on validation log loss. Numerical inputs are standardized and clipped, or encoded piecewise linearly on quantile bins (Gorishniy et al., 2022), which gives the network a step-like view of each attribute similar to tree splits. Tree ensembles usually match or beat such networks on tabular data of this size (Grinsztajn et al., 2022); the MLP is there to test that on this data. Weights are stored as arrays, so a fitted network saves and loads with the same `joblib` bundle as the other models.
 
 **Monotonic constraints.** The boosting models can be fitted with expected directions per input: PD non-decreasing in utilization, debt ratio and delinquency severity, non-increasing in age and income, and free for the others. The constraint is checked after fitting as the share of ICE curves that move in the wrong direction, which must be zero. This prevents reason codes that contradict credit judgment.
 
@@ -265,11 +269,14 @@ See [docs/methodology.md](docs/methodology.md) for the full statistical design, 
 - Deerwester, S., Dumais, S. T., Furnas, G. W., Landauer, T. K., and Harshman, R. (1990). Indexing by latent semantic analysis. *Journal of the American Society for Information Science*, 41(6), 391-407.
 - DeLong, E. R., DeLong, D. M., and Clarke-Pearson, D. L. (1988). Comparing the areas under two or more correlated receiver operating characteristic curves: A nonparametric approach. *Biometrics*, 44(3), 837-845.
 - Efron, B., and Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman and Hall.
+- Gorishniy, Y., Rubachev, I., and Babenko, A. (2022). On embeddings for numerical features in tabular deep learning. *NeurIPS*.
+- Grinsztajn, L., Oyallon, E., and Varoquaux, G. (2022). Why do tree-based models still outperform deep learning on typical tabular data? *NeurIPS*.
 - Hand, D. J., and Henley, W. E. (1993). Can reject inference ever work? *IMA Journal of Mathematics Applied in Business and Industry*, 5(1), 45-55.
 - Harrell, F. E., Califf, R. M., Pryor, D. B., Lee, K. L., and Rosati, R. A. (1982). Evaluating the yield of medical tests. *JAMA*, 247(18), 2543-2546.
 - Kaplan, E. L., and Meier, P. (1958). Nonparametric estimation from incomplete observations. *Journal of the American Statistical Association*, 53(282), 457-481.
 - Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., and Liu, T.-Y. (2017). LightGBM: A highly efficient gradient boosting decision tree. *NeurIPS*.
 - Lewis, P., et al. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *NeurIPS*.
+- Loshchilov, I., and Hutter, F. (2019). Decoupled weight decay regularization. *ICLR*.
 - Lundberg, S. M., and Lee, S.-I. (2017). A unified approach to interpreting model predictions. *NeurIPS*.
 - Mitchell, M., et al. (2019). Model cards for model reporting. *FAT\**.
 - Nadeau, C., and Bengio, Y. (2003). Inference for the generalization error. *Machine Learning*, 52(3), 239-281.

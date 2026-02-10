@@ -25,6 +25,7 @@ credit-risk = "credit_risk.cli:main"
 dev = ["pytest>=7.4", "ruff>=0.5", "pre-commit>=3.5"]
 gbm = ["xgboost>=2.0", "lightgbm>=4.0"]
 tune = ["optuna>=3.4"]
+nn = ["torch>=2.1"]
 explain = ["shap>=0.44"]
 track = ["mlflow>=2.9"]
 serve = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27"]

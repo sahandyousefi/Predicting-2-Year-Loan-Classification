@@ -16,7 +16,7 @@ def test_unknown_model():
 
 
 @pytest.mark.parametrize(
-    "name", ["logistic", "scorecard", "hist_gbm", "xgboost", "lightgbm"]
+    "name", ["logistic", "scorecard", "hist_gbm", "xgboost", "lightgbm", "mlp"]
 )
 def test_models_fit_and_rank(name, credit_df):
     if name not in available_models():

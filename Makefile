@@ -6,7 +6,7 @@ install:
 	pip install -e ".[dev]"
 
 install-all:
-	pip install -e ".[dev,gbm,tune,explain,track,serve,viz]"
+	pip install -e ".[dev,gbm,tune,explain,track,serve,viz,nn]"
 
 lint:
 	ruff check .

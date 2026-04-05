@@ -1,12 +1,6 @@
 # Predicting-2-Year-Loan-Classification
 Financial institutions must assess whether a borrower is at risk of becoming delinquent within the next 2 years.
 
-Below is a **polished, professional, portfolio-ready GitHub README** for your project.
-It incorporates the problem statement, dataset description, methodology, pipeline, and all interpretations **I1 → I9** that you asked me to memorize.
-
-Copy-paste directly into your `README.md` file in your GitHub repo.
-
----
 
 # **Credit Risk Prediction Using Logistic Regression & Feature Engineering**
 
@@ -215,8 +209,6 @@ The final model delivers:
 * Solid performance metrics
 * Clean and well-documented ML workflow
 
-Perfect for machine learning and data science job portfolios.
-
 ---
 
 # **Next Steps (Future Work)**
@@ -231,6 +223,6 @@ To extend this project, consider:
 
 ---
 
-# ⭐ **If you like this project, consider giving the repo a star!**
+# **If you like this project, consider giving the repo a star!**
 
 
